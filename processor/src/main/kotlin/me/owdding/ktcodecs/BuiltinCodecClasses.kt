@@ -1,0 +1,70 @@
+package me.owdding.ktcodecs
+
+import org.intellij.lang.annotations.Language
+
+internal object BuiltinCodecClasses {
+
+    val PACKAGE_IDENTIFIER = "/*%%PACKAGE%%*/"
+
+    @Language("kotlin")
+    val ENUM_CODEC = """
+        package $PACKAGE_IDENTIFIER
+        
+        internal class EnumCodec<T> private constructor(private val codec: com.mojang.serialization.Codec<T>) : com.mojang.serialization.Codec<T> {
+        
+            override fun <T1 : Any?> encode(input: T, ops: com.mojang.serialization.DynamicOps<T1>?, prefix: T1): com.mojang.serialization.DataResult<T1> = codec.encode(input, ops, prefix)
+            override fun <T1 : Any?> decode(ops: com.mojang.serialization.DynamicOps<T1>?, input: T1): com.mojang.serialization.DataResult<com.mojang.datafixers.util.Pair<T, T1>> = codec.decode(ops, input)
+        
+            companion object {
+        
+                fun <T> forKCodec(constants: Array<T>): EnumCodec<T> =
+                    EnumCodec(com.mojang.serialization.Codec.withAlternative(constantCodec(constants), intCodec(constants)))
+        
+                private fun <T> intCodec(constants: Array<T>): com.mojang.serialization.Codec<T> {
+                    return com.mojang.serialization.Codec.INT.flatXmap(
+                        { ordinal: Int ->
+                            if (ordinal >= 0 && ordinal < constants.size) {
+                                return@flatXmap com.mojang.serialization.DataResult.success<T>(constants[ordinal])
+                            }
+                            com.mojang.serialization.DataResult.error { "Unknown enum ordinal: ${'$'}ordinal" }
+                        },
+                        { value: T -> com.mojang.serialization.DataResult.success((value as Enum<*>).ordinal) },
+                    )
+                }
+        
+                private fun <T> constantCodec(constants: Array<T>): com.mojang.serialization.Codec<T> = com.mojang.serialization.Codec.STRING.flatXmap(
+                    { name: String ->
+                        runCatching {
+                            com.mojang.serialization.DataResult.success(constants.first { (it as Enum<*>).name == name })
+                        }.getOrElse {
+                            com.mojang.serialization.DataResult.error { "Unknown enum name: ${'$'}name" }
+                        }
+                    },
+                    { value: T -> com.mojang.serialization.DataResult.success((value as Enum<*>).name) },
+                )
+            }
+        }
+    """.trimIndent()
+
+    @Language("kotlin")
+    val CODEC_UTILS = """
+        package $PACKAGE_IDENTIFIER
+        
+        internal object CodecUtils {
+        
+            val UUID_CODEC = com.mojang.serialization.Codec.STRING.xmap(
+                { java.util.UUID.fromString(it) },
+                { it.toString() }
+            )
+        
+            fun <T> set(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
+                codec.listOf().xmap({ it.toMutableSet() }, { it.toList() })
+        
+            fun <T> list(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+                codec.listOf().xmap({ it.toMutableList() }, { it })
+        
+            fun <A, B> map(key: com.mojang.serialization.Codec<A>, value: com.mojang.serialization.Codec<B>): com.mojang.serialization.Codec<MutableMap<A, B>> =
+                com.mojang.serialization.Codec.unboundedMap(key, value).xmap({ it.toMutableMap() }, { it })
+        }
+    """.trimIndent()
+}
