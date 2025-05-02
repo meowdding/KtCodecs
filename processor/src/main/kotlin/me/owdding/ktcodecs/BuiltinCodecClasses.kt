@@ -36,7 +36,7 @@ internal object BuiltinCodecClasses {
                 private fun <T> constantCodec(constants: Array<T>): com.mojang.serialization.Codec<T> = com.mojang.serialization.Codec.STRING.flatXmap(
                     { name: String ->
                         runCatching {
-                            com.mojang.serialization.DataResult.success(constants.first { (it as Enum<*>).name == name })
+                            com.mojang.serialization.DataResult.success(constants.first { (it as Enum<*>).name.equals(name, true) })
                         }.getOrElse {
                             com.mojang.serialization.DataResult.error { "Unknown enum name: ${'$'}name" }
                         }
