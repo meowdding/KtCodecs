@@ -1,4 +1,4 @@
-package me.owdding.ktcodecs
+package me.owdding.ktcodecs.generators
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.CodeBlock

@@ -5,6 +5,7 @@ import org.intellij.lang.annotations.Language
 internal object BuiltinCodecClasses {
 
     val PACKAGE_IDENTIFIER = "/*%%PACKAGE%%*/"
+    val CODECS_IDENTIFIER = "/*%%CODEC_THINGY%%*/"
 
     @Language("kotlin")
     val ENUM_CODEC = """
@@ -65,6 +66,31 @@ internal object BuiltinCodecClasses {
         
             fun <A, B> map(key: com.mojang.serialization.Codec<A>, value: com.mojang.serialization.Codec<B>): com.mojang.serialization.Codec<MutableMap<A, B>> =
                 com.mojang.serialization.Codec.unboundedMap(key, value).xmap({ it.toMutableMap() }, { it })
+        
+            fun <T> lazyMapCodec(init: () -> com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<T> {
+                return com.mojang.serialization.MapCodec.recursive(init.toString()) { init() }
+            }
+        
+            fun <T> toLazy(codec: com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<Lazy<T>> {
+                return codec.xmap({lazyOf(it)}, {it.value})
+            }
         }
+    """.trimIndent()
+
+    @Language("kotlin")
+    val DISPATCH_HELPER = """
+        package $PACKAGE_IDENTIFIER
+        
+        internal interface DispatchHelper<T: Any> {
+            val codec: com.mojang.serialization.MapCodec<out T>
+                get() = codec(type)
+            val type: kotlin.reflect.KClass<out T>
+            val name: String
+        
+            private fun <T: Any> codec(type: kotlin.reflect.KClass<T>): com.mojang.serialization.MapCodec<T> {
+                return TestProjectCodecs.getMapCodec(type.java) as com.mojang.serialization.MapCodec<T>
+            }
+        }
+
     """.trimIndent()
 }

@@ -1,11 +1,14 @@
-package me.owdding.ktcodecs
+package me.owdding.ktcodecs.utils
 
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.asClassName
 
 private const val SERIALIZATION = "com.mojang.serialization"
 private const val DATAFIXER = "com.mojang.datafixers"
 
 internal val CODEC_TYPE = ClassName(SERIALIZATION, "Codec")
+internal val LAZY = Lazy::class.asClassName()
+internal val MAP_CODEC_TYPE = ClassName(SERIALIZATION, "MapCodec")
 internal val RECORD_CODEC_BUILDER_TYPE = ClassName("$SERIALIZATION.codecs", "RecordCodecBuilder")
 internal val EITHER_TYPE = ClassName("$DATAFIXER.util", "Either")
 

@@ -12,10 +12,12 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import me.owdding.ktcodecs.utils.CODEC_TYPE
+import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 
-internal class BuiltinCodecs {
+internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
 
-    private val codecs: MutableMap<TypeName, Info> = mutableMapOf()
+    private val codecs: MutableMap<TypeName, Info> = this
 
     init {
         this.add("java.lang", "String", "com.mojang.serialization.Codec.STRING", true)
@@ -37,11 +39,11 @@ internal class BuiltinCodecs {
         this.add("java.util", "UUID", "CodecUtils.UUID_CODEC", true)
     }
 
-    private fun add(packageName: String, className: String, codec: String, keyable: Boolean = false) = add(ClassName(packageName, className), codec, keyable)
+    fun add(packageName: String, className: String, codec: String, keyable: Boolean = false) = add(ClassName(packageName, className), codec, keyable)
 
-    private fun add(type: TypeName, value: String, keyable: Boolean = false): Boolean {
+    fun add(type: TypeName, value: String, keyable: Boolean = false, mapCodec: Boolean = false): Boolean {
         if (type !in codecs) {
-            codecs[type] = Info(value, keyable)
+            codecs[type] = Info(value, keyable, mapCodec)
             return true
         }
         return false
@@ -53,14 +55,12 @@ internal class BuiltinCodecs {
             val type = declaration.type.resolve().arguments[0].toTypeName()
             val isKeyable = declaration.getAnnotationsByType(IncludedCodec::class).first().keyable
 
-            if (!add(type, declaration.qualifiedName!!.asString(), isKeyable)) {
+            val isMapCodec = declaration.type.resolve().starProjection().toClassName() == MAP_CODEC_TYPE
+
+            if (!add(type, declaration.qualifiedName!!.asString(), isKeyable, isMapCodec)) {
                 logger.error("Duplicate included codec for $type")
             }
         }
-    }
-
-    fun forEach(consumer: (TypeName, Info) -> Unit) {
-        codecs.forEach(consumer)
     }
 
     fun isStringType(type: TypeName): Boolean {
@@ -77,8 +77,10 @@ internal class BuiltinCodecs {
                 logger.error("@IncludedCodec can only be applied to public properties in objects")
             } else if (!declaration.parentDeclaration!!.isPublic() && !declaration.parentDeclaration!!.isInternal()) {
                 logger.error("@IncludedCodec can only be applied to public properties in public objects")
-            } else if (declaration.type.resolve().starProjection().toClassName() != CODEC_TYPE) {
-                logger.error("@IncludedCodec can only be applied to properties that are Codec<T>")
+            } else if (declaration.type.resolve().starProjection().toClassName() != CODEC_TYPE
+                && declaration.type.resolve().starProjection().toClassName() != MAP_CODEC_TYPE
+            ) {
+                logger.error("@IncludedCodec can only be applied to properties that are Codec<T> or MapCodec<T>")
             } else {
                 return true
             }
@@ -89,6 +91,7 @@ internal class BuiltinCodecs {
 
 data class Info(
     val codec: String,
-    val keyable: Boolean
+    val keyable: Boolean,
+    val mapCodec: Boolean,
 )
 

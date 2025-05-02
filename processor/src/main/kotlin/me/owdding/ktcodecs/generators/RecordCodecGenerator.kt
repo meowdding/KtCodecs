@@ -1,12 +1,19 @@
-package me.owdding.ktcodecs
+package me.owdding.ktcodecs.generators
 
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import me.owdding.ktcodecs.BuiltinCodecs
+import me.owdding.ktcodecs.FieldName
+import me.owdding.ktcodecs.utils.*
+import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import java.util.*
 
 internal object RecordCodecGenerator {
@@ -64,6 +71,10 @@ internal object RecordCodecGenerator {
 
     private fun CodeLineBuilder.addCodec(type: KSType) {
         when (type.starProjection().toClassName()) {
+            LAZY -> {
+                add("getLazyCodec<%T>()", type.arguments[0].type!!.resolve().toTypeName())
+            }
+
             List::class.asClassName() -> {
                 addCodec(type.arguments[0].type!!.resolve())
                 add(".listOf()")
@@ -110,9 +121,10 @@ internal object RecordCodecGenerator {
             }
         }
     }
-
-    private fun CodeBlock.Builder.createEntry(parameter: KSValueParameter, declaration: KSClassDeclaration): Pair<String, Type> {
+    private fun CodeBlock.Builder.createEntry(parameter: KSValueParameter, declaration: KSClassDeclaration, lazy: Boolean): Pair<String, Type> {
+        val fieldName = parameter.getField<FieldName, String>("value")?: parameter.name!!.asString()
         val name = parameter.name!!.asString()
+
         val nullable = parameter.type.resolve().isMarkedNullable
         val ksType = parameter.type.resolve()
 
@@ -120,11 +132,17 @@ internal object RecordCodecGenerator {
 
         builder.addCodec(ksType)
 
+        val getter = if (lazy) {
+            "getter.value"
+        } else {
+            "getter"
+        }
+
         return when {
             parameter.hasDefault -> {
                 builder.add(
-                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.of(getter.%L) },\n",
-                    name,
+                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.of(${getter}.%L) },\n",
+                    fieldName,
                     Optional::class.java,
                     name,
                 )
@@ -134,8 +152,8 @@ internal object RecordCodecGenerator {
 
             nullable -> {
                 builder.add(
-                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.ofNullable(getter.%L) },\n",
-                    name,
+                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.ofNullable(${getter}.%L) },\n",
+                    fieldName,
                     Optional::class.java,
                     name,
                 )
@@ -145,9 +163,8 @@ internal object RecordCodecGenerator {
 
             else -> {
                 builder.add(
-                    ".fieldOf(\"%L\").forGetter(%T::%L),\n",
-                    name,
-                    declaration.toClassName(),
+                    ".fieldOf(\"%L\").forGetter { getter -> ${getter}.%L },\n",
+                    fieldName,
                     name,
                 )
                 builder.build(this)
@@ -156,32 +173,41 @@ internal object RecordCodecGenerator {
         }
     }
 
-    fun generateCodec(declaration: KSAnnotated): PropertySpec {
+    fun generateCodec(declaration: KSAnnotated, lazy: Boolean): PropertySpec {
         if (declaration !is KSClassDeclaration) {
             throw IllegalArgumentException("Declaration is not a class")
         }
-        val codecName = declaration.simpleName.asString() + "Codec"
-        return PropertySpec.builder(codecName, CODEC_TYPE.parameterizedBy(declaration.toClassName()))
+        val codecName = (if (lazy) "Lazy" else "") + declaration.simpleName.asString() + "Codec"
+        val type = MAP_CODEC_TYPE.parameterizedBy(
+            if (lazy) LAZY.parameterizedBy(declaration.toClassName()) else declaration.toClassName()
+        )
+        return PropertySpec.builder(codecName, type)
             .addModifiers(KModifier.PRIVATE)
             .initializer(
                 CodeBlock.builder().apply {
-                    add("Codec.lazyInitialized {\n")
+                    add("CodecUtils.lazyMapCodec {\n")
                     indent()
-                    add("%T.create {\n", RECORD_CODEC_BUILDER_TYPE)
+                    add("%T.mapCodec {\n", RECORD_CODEC_BUILDER_TYPE)
                     indent()
                     add("it.group(\n")
                     val args = mutableListOf<Pair<String, Type>>()
 
                     indent()
                     for (parameter in declaration.primaryConstructor!!.parameters) {
-                        createEntry(parameter, declaration).let { args.add(it) }
+                        createEntry(parameter, declaration, lazy).let { args.add(it) }
                     }
                     unindent()
 
                     add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
 
                     indent()
+                    if (lazy) {
+                        add("lazy {")
+                    }
                     RecordCodecInstanceGenerator.generateCodecInstance(this, args, declaration)
+                    if (lazy) {
+                        add("}")
+                    }
                     unindent()
 
                     add("}\n")

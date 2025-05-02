@@ -1,8 +1,14 @@
 package me.owdding.ktcodecs
 
+import kotlin.reflect.KClass
+
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.CLASS)
-annotation class GenerateCodec
+annotation class GenerateCodec(val generateDefault: Boolean = true, val generateLazy: Boolean = false)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.CLASS)
+annotation class GenerateDispatchCodec(val value: KClass<*>)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.PROPERTY)
@@ -13,3 +19,7 @@ annotation class IncludedCodec(
      */
     val keyable: Boolean = false
 )
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class FieldName(val value: String)

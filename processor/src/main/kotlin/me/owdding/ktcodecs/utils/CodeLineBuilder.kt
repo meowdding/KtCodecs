@@ -1,4 +1,4 @@
-package me.owdding.ktcodecs
+package me.owdding.ktcodecs.utils
 
 import com.squareup.kotlinpoet.CodeBlock
 
