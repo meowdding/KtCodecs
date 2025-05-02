@@ -33,9 +33,9 @@ internal object RecordCodecGenerator {
             val isMap = ksType.starProjection().toClassName() == Map::class.asClassName() || ksType.starProjection()
                 .toClassName() == MutableMap::class.asClassName()
             if (isMap) {
-                val keyType = ksType.arguments.getRef(0)
-                val type = keyType.resolve().toTypeName().copy(false)
-                if (Modifier.ENUM !in keyType.modifiers && !builtinCodecs.isStringType(type)) {
+                val keyType = ksType.arguments.getRef(0).resolve()
+                val type = keyType.toTypeName().copy(false)
+                if (Modifier.ENUM !in keyType.declaration.modifiers && !builtinCodecs.isStringType(type)) {
                     logger.error("parameter $name is a map with a key type that is not a string: $type")
                     return false
                 }

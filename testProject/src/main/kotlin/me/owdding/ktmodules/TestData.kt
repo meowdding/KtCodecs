@@ -25,6 +25,10 @@ data class Complex(val namespace: String, val path: String) {
     }
 }
 
+enum class TestEnum {
+    A, B, C
+}
+
 @GenerateCodec
 data class TestData(
     val name: String,
@@ -33,7 +37,8 @@ data class TestData(
     val list: List<String>,
     val nullable: String = "",
     val complex: Complex = Complex("owdding", "test"),
-    val complexMap: Map<Complex, Int>
+    val complexMap: Map<Complex, Int>,
+    val enumKeyMap: Map<TestEnum, Int>,
 ) {
 
     companion object {
