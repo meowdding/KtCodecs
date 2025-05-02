@@ -10,7 +10,7 @@ internal object AnnotationUtils {
     }
 
     inline fun <reified A : Annotation, T> KSAnnotated.getField(name: String): T? {
-        return this.getAnnotation<A>()!!.getAs(name)
+        return this.getAnnotation<A>()?.getAs(name)
     }
 
     @Suppress("UNCHECKED_CAST")
