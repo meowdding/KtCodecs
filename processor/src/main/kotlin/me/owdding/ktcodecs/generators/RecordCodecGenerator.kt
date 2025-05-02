@@ -140,7 +140,11 @@ internal object RecordCodecGenerator {
 
         val namedCodec = parameter.getField<NamedCodec, String>("name")
         if (namedCodec != null) {
-            builder.add(builtinCodec.namedCodecs[namedCodec]!!.qualifiedName!!.asString())
+            try {
+                builder.add(builtinCodec.namedCodecs[namedCodec]!!.qualifiedName!!.asString())
+            } catch (e: NullPointerException) {
+                throw RuntimeException("Required unknown named codec $namedCodec", e)
+            }
         } else {
             builder.addCodec(ksType)
         }
