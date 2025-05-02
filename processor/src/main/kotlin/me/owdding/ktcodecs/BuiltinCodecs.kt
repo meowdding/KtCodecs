@@ -9,10 +9,9 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.ksp.toTypeName
+import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 
@@ -70,7 +69,7 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
                 return
             }
 
-            val isMapCodec = declaration.type.resolve().starProjection().toTypeName() == MAP_CODEC_TYPE.parameterizedBy(STAR)
+            val isMapCodec = declaration.type.resolveClassName() == MAP_CODEC_TYPE
 
             if (!add(type, declaration.qualifiedName!!.asString(), isKeyable, isMapCodec)) {
                 logger.error("Duplicate included codec for $type")
@@ -92,10 +91,8 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
                 logger.error("@IncludedCodec can only be applied to public properties in objects")
             } else if (!declaration.parentDeclaration!!.isPublic() && !declaration.parentDeclaration!!.isInternal()) {
                 logger.error("@IncludedCodec can only be applied to public properties in public objects")
-            } else if (declaration.type.resolve().starProjection().toTypeName() != CODEC_TYPE.parameterizedBy(STAR)
-                && declaration.type.resolve().starProjection().toTypeName() != MAP_CODEC_TYPE.parameterizedBy(STAR)
-            ) {
-                logger.error("@IncludedCodec can only be applied to properties that are Codec<T> or MapCodec<T>")
+            } else if (declaration.type.resolveClassName() != CODEC_TYPE && declaration.type.resolveClassName() != MAP_CODEC_TYPE) {
+                logger.error("@IncludedCodec can only be applied to properties that are Codec<T> or MapCodec<T> was ${declaration.type.resolve().toTypeName()} at ${declaration.simpleName.asString()}")
             } else {
                 return true
             }

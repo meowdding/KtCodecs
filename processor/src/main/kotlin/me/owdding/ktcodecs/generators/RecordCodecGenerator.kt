@@ -7,7 +7,6 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
@@ -17,6 +16,7 @@ import me.owdding.ktcodecs.FieldName
 import me.owdding.ktcodecs.NamedCodec
 import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
+import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import java.util.*
 
 internal object RecordCodecGenerator {
@@ -76,36 +76,36 @@ internal object RecordCodecGenerator {
     }
 
     private fun CodeLineBuilder.addCodec(type: KSType) {
-        when (type.starProjection().toTypeName()) {
-            LAZY.parameterizedBy(STAR) -> {
+        when (type.resolveClassName()) {
+            LAZY -> {
                 add("getLazyCodec<%T>()", type.arguments[0].type!!.resolve().toTypeName())
             }
 
-            List::class.asClassName().parameterizedBy(STAR) -> {
+            List::class.asClassName() -> {
                 addCodec(type.arguments[0].type!!.resolve())
                 add(".listOf()")
             }
 
-            MUTABLE_LIST.parameterizedBy(STAR) -> {
+            MUTABLE_LIST -> {
                 add("CodecUtils.list(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(")")
             }
 
-            MUTABLE_SET.parameterizedBy(STAR) -> {
+            MUTABLE_SET -> {
                 add("CodecUtils.mutableSet(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(")")
             }
 
 
-            Set::class.asClassName().parameterizedBy(STAR) -> {
+            Set::class.asClassName() -> {
                 add("CodecUtils.set(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(")")
             }
 
-            Map::class.asClassName().parameterizedBy(STAR) -> {
+            Map::class.asClassName() -> {
                 add("%T.unboundedMap(", CODEC_TYPE)
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")
@@ -113,7 +113,7 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
-            MUTABLE_MAP.parameterizedBy(STAR) -> {
+            MUTABLE_MAP -> {
                 add("CodecUtils.map(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")

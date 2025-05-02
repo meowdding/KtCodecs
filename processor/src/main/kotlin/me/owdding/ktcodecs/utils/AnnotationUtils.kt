@@ -1,7 +1,7 @@
 package me.owdding.ktcodecs.utils
 
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSAnnotation
+import com.google.devtools.ksp.symbol.*
+import com.squareup.kotlinpoet.ksp.toClassName
 
 internal object AnnotationUtils {
 
@@ -17,4 +17,6 @@ internal object AnnotationUtils {
     fun <T> KSAnnotation.getAs(id: String) =
         this.arguments.firstOrNull { it.name?.asString() == id }?.value as? T
 
+    fun KSTypeReference.resolveClassName() = this.resolve().resolveClassName()
+    fun KSType.resolveClassName() = (this.starProjection().declaration as KSClassDeclaration).toClassName()
 }
