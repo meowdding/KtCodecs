@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec
 import me.owdding.ktcodecs.FieldName
 import me.owdding.ktcodecs.GenerateCodec
 import me.owdding.ktcodecs.IncludedCodec
+import me.owdding.ktcodecs.NamedCodec
 
 data class Complex(val namespace: String, val path: String) {
 
@@ -14,6 +15,13 @@ data class Complex(val namespace: String, val path: String) {
             { Complex(it.split(":").first(), it.split(":").lastOrNull() ?: "") },
             { "${it.namespace}:${it.path}" }
         )
+
+        @IncludedCodec(named = "cumulative_long_list")
+        val CUMULATIVE_LONG_LIST: Codec<List<Long>> =
+            Codec.LONG.listOf().xmap(
+                { it.runningFold(0, Long::plus).distinct() },
+                { it.reversed().runningFold(0, Long::minus).reversed() },
+            )
     }
 }
 
@@ -21,6 +29,7 @@ data class Complex(val namespace: String, val path: String) {
 data class TestData(
     val name: String,
     @FieldName("t") val thing: Map<String, String>,
+    @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
     val list: List<String>,
     val nullable: String = "",
     val complex: Complex = Complex("owdding", "test"),

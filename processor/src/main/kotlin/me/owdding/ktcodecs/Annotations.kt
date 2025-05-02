@@ -17,8 +17,14 @@ annotation class IncludedCodec(
     /**
      * Keyable means it can be used in a key of a map meaning its serialized to a string
      */
-    val keyable: Boolean = false
+    val keyable: Boolean = false,
+
+    val named: String = ":3"
 )
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class NamedCodec(val name: String)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)

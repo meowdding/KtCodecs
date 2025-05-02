@@ -34,6 +34,7 @@ internal class KCodecProcessor(
 
         val annotated = resolver.getSymbolsWithAnnotation(GenerateCodec::class.qualifiedName!!).toList()
         val validGeneratedCodecs = annotated.filter { RecordCodecGenerator.isValid(it, logger, builtinCodecs) }
+        RecordCodecGenerator.builtinCodec = builtinCodecs
         val generatedLazyCodecs = validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateLazy")!! }.map { RecordCodecGenerator.generateCodec(it, true) }
         val generatedCodecs = validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateDefault")!! }.map { RecordCodecGenerator.generateCodec(it, false) }
 

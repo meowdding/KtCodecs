@@ -12,12 +12,14 @@ import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.BuiltinCodecs
 import me.owdding.ktcodecs.FieldName
+import me.owdding.ktcodecs.NamedCodec
 import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import java.util.*
 
 internal object RecordCodecGenerator {
 
+    lateinit var builtinCodec: BuiltinCodecs
     private const val MAX_PARAMETERS = 16
 
     private fun isValid(parameter: KSValueParameter, logger: KSPLogger, builtinCodecs: BuiltinCodecs): Boolean {
@@ -28,7 +30,8 @@ internal object RecordCodecGenerator {
         } else if (parameter.hasDefault && ksType.isMarkedNullable) {
             logger.error("parameter $name is nullable and has a default value")
         } else {
-            val isMap = ksType.starProjection().toClassName() == Map::class.asClassName() || ksType.starProjection().toClassName() == MutableMap::class.asClassName()
+            val isMap = ksType.starProjection().toClassName() == Map::class.asClassName() || ksType.starProjection()
+                .toClassName() == MutableMap::class.asClassName()
             if (isMap) {
                 val keyType = ksType.arguments.getRef(0)
                 val type = keyType.resolve().toTypeName().copy(false)
@@ -121,8 +124,13 @@ internal object RecordCodecGenerator {
             }
         }
     }
-    private fun CodeBlock.Builder.createEntry(parameter: KSValueParameter, declaration: KSClassDeclaration, lazy: Boolean): Pair<String, Type> {
-        val fieldName = parameter.getField<FieldName, String>("value")?: parameter.name!!.asString()
+
+    private fun CodeBlock.Builder.createEntry(
+        parameter: KSValueParameter,
+        declaration: KSClassDeclaration,
+        lazy: Boolean,
+    ): Pair<String, Type> {
+        val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
         val name = parameter.name!!.asString()
 
         val nullable = parameter.type.resolve().isMarkedNullable
@@ -130,7 +138,13 @@ internal object RecordCodecGenerator {
 
         val builder = CodeLineBuilder()
 
-        builder.addCodec(ksType)
+        val namedCodec = parameter.getField<NamedCodec, String>("name")
+        if (namedCodec != null) {
+            builder.add(builtinCodec.namedCodecs[namedCodec]!!.qualifiedName!!.asString())
+        } else {
+            builder.addCodec(ksType)
+        }
+
 
         val getter = if (lazy) {
             "getter.value"

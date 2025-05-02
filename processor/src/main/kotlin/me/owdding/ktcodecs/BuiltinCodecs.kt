@@ -18,6 +18,7 @@ import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
 
     private val codecs: MutableMap<TypeName, Info> = this
+    val namedCodecs: MutableMap<String, KSPropertyDeclaration> = mutableMapOf()
 
     init {
         this.add("java.lang", "String", "com.mojang.serialization.Codec.STRING", true)
@@ -54,6 +55,14 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
             declaration as KSPropertyDeclaration
             val type = declaration.type.resolve().arguments[0].toTypeName()
             val isKeyable = declaration.getAnnotationsByType(IncludedCodec::class).first().keyable
+            val isNamed = declaration.getAnnotationsByType(IncludedCodec::class).first().named.takeUnless { it == ":3" }
+
+            if (isNamed != null) {
+                this.namedCodecs.put(isNamed, declaration)?.let {
+                    throw UnsupportedOperationException("Found duplicate named codec $isNamed")
+                }
+                return
+            }
 
             val isMapCodec = declaration.type.resolve().starProjection().toClassName() == MAP_CODEC_TYPE
 
