@@ -35,6 +35,7 @@ internal class KCodecProcessor(
         val annotated = resolver.getSymbolsWithAnnotation(GenerateCodec::class.qualifiedName!!).toList()
         val validGeneratedCodecs = annotated.filter { RecordCodecGenerator.isValid(it, logger, builtinCodecs) }
         RecordCodecGenerator.builtinCodec = builtinCodecs
+        RecordCodecGenerator.logger = logger
         val generatedLazyCodecs = validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateLazy")!! }.map { RecordCodecGenerator.generateCodec(it, true) }
         val generatedCodecs = validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateDefault")!! }.map { RecordCodecGenerator.generateCodec(it, false) }
 
@@ -98,10 +99,13 @@ internal class KCodecProcessor(
                             this.returns(MAP_CODEC_TYPE.parameterizedBy(WildcardTypeName.producerOf(LAZY.parameterizedBy(STAR))))
                             this.addCode("return when {\n")
                             for (codec in validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateLazy")!! }) {
+                                val string = codec.getField<NamedCodec, String>("name")
+
+                                val codecName = (string ?: (codec as KSClassDeclaration).simpleName.asString()) + "Codec"
                                 this.addCode(
                                     "    clazz == %T::class.java -> Lazy%L\n",
                                     (codec as KSClassDeclaration).toClassName(),
-                                    "${codec.simpleName.asString()}Codec",
+                                    codecName,
                                 )
                             }
                             this.addCode("    else -> CodecUtils.toLazy(getMapCodec(clazz))\n")
@@ -132,17 +136,20 @@ internal class KCodecProcessor(
                                 this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type)
                             }
                             for (codec in validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateDefault")!! }) {
+                                val string = codec.getField<NamedCodec, String>("name")
+
+                                val codecName = (string ?: (codec as KSClassDeclaration).simpleName.asString()) + "Codec"
+
                                 this.addCode(
                                     "    clazz == %T::class.java -> %L\n",
                                     (codec as KSClassDeclaration).toClassName(),
-                                    "${codec.simpleName.asString()}Codec",
+                                    codecName,
                                 )
                             }
                             this.addCode("    else -> throw IllegalArgumentException(\"Unknown codec for class: \$clazz\")\n")
                             this.addCode("}\n")
                         }.build()
                     )
-
                     this.addFunction(
                         FunSpec.builder("getCodec").apply {
                             this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
@@ -159,7 +166,6 @@ internal class KCodecProcessor(
 
                 }.build(),
             )
-
 
         file.build().writeTo(generator, dependencies)
 

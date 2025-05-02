@@ -9,8 +9,9 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
@@ -18,7 +19,7 @@ import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
 
     private val codecs: MutableMap<TypeName, Info> = this
-    val namedCodecs: MutableMap<String, KSPropertyDeclaration> = mutableMapOf()
+    val namedCodecs: MutableMap<String, String> = mutableMapOf()
 
     init {
         this.add("java.lang", "String", "com.mojang.serialization.Codec.STRING", true)
@@ -50,6 +51,10 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
         return false
     }
 
+    fun addGeneratedNamedCodec(name: String, property: String) {
+        this.namedCodecs.put(name, property)
+    }
+
     fun add(declaration: KSAnnotated, logger: KSPLogger) {
         if (isValid(declaration, logger)) {
             declaration as KSPropertyDeclaration
@@ -58,13 +63,14 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
             val isNamed = declaration.getAnnotationsByType(IncludedCodec::class).first().named.takeUnless { it == ":3" }
 
             if (isNamed != null) {
-                this.namedCodecs.put(isNamed, declaration)?.let {
+                this.namedCodecs.put(isNamed, declaration.qualifiedName!!.asString())?.let {
                     throw UnsupportedOperationException("Found duplicate named codec $isNamed")
                 }
+                logger.warn("Found named codec $isNamed")
                 return
             }
 
-            val isMapCodec = declaration.type.resolve().starProjection().toClassName() == MAP_CODEC_TYPE
+            val isMapCodec = declaration.type.resolve().starProjection().toTypeName() == MAP_CODEC_TYPE.parameterizedBy(STAR)
 
             if (!add(type, declaration.qualifiedName!!.asString(), isKeyable, isMapCodec)) {
                 logger.error("Duplicate included codec for $type")
@@ -86,8 +92,8 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
                 logger.error("@IncludedCodec can only be applied to public properties in objects")
             } else if (!declaration.parentDeclaration!!.isPublic() && !declaration.parentDeclaration!!.isInternal()) {
                 logger.error("@IncludedCodec can only be applied to public properties in public objects")
-            } else if (declaration.type.resolve().starProjection().toClassName() != CODEC_TYPE
-                && declaration.type.resolve().starProjection().toClassName() != MAP_CODEC_TYPE
+            } else if (declaration.type.resolve().starProjection().toTypeName() != CODEC_TYPE.parameterizedBy(STAR)
+                && declaration.type.resolve().starProjection().toTypeName() != MAP_CODEC_TYPE.parameterizedBy(STAR)
             ) {
                 logger.error("@IncludedCodec can only be applied to properties that are Codec<T> or MapCodec<T>")
             } else {

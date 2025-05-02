@@ -7,7 +7,9 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.BuiltinCodecs
@@ -19,6 +21,7 @@ import java.util.*
 
 internal object RecordCodecGenerator {
 
+    lateinit var logger: KSPLogger
     lateinit var builtinCodec: BuiltinCodecs
     private const val MAX_PARAMETERS = 16
 
@@ -30,8 +33,8 @@ internal object RecordCodecGenerator {
         } else if (parameter.hasDefault && ksType.isMarkedNullable) {
             logger.error("parameter $name is nullable and has a default value")
         } else {
-            val isMap = ksType.starProjection().toClassName() == Map::class.asClassName() || ksType.starProjection()
-                .toClassName() == MutableMap::class.asClassName()
+            val isMap = ksType.starProjection().toTypeName() == Map::class.asTypeName() || ksType.starProjection()
+                .toTypeName() == MutableMap::class.asTypeName()
             if (isMap) {
                 val keyType = ksType.arguments.getRef(0).resolve()
                 val type = keyType.toTypeName().copy(false)
@@ -73,29 +76,36 @@ internal object RecordCodecGenerator {
     }
 
     private fun CodeLineBuilder.addCodec(type: KSType) {
-        when (type.starProjection().toClassName()) {
-            LAZY -> {
+        when (type.starProjection().toTypeName()) {
+            LAZY.parameterizedBy(STAR) -> {
                 add("getLazyCodec<%T>()", type.arguments[0].type!!.resolve().toTypeName())
             }
 
-            List::class.asClassName() -> {
+            List::class.asClassName().parameterizedBy(STAR) -> {
                 addCodec(type.arguments[0].type!!.resolve())
                 add(".listOf()")
             }
 
-            MUTABLE_LIST -> {
+            MUTABLE_LIST.parameterizedBy(STAR) -> {
                 add("CodecUtils.list(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(")")
             }
 
-            Set::class.asClassName(), MUTABLE_SET -> {
+            MUTABLE_SET.parameterizedBy(STAR) -> {
+                add("CodecUtils.mutableSet(")
+                addCodec(type.arguments[0].type!!.resolve())
+                add(")")
+            }
+
+
+            Set::class.asClassName().parameterizedBy(STAR) -> {
                 add("CodecUtils.set(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(")")
             }
 
-            Map::class.asClassName() -> {
+            Map::class.asClassName().parameterizedBy(STAR) -> {
                 add("%T.unboundedMap(", CODEC_TYPE)
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")
@@ -103,7 +113,7 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
-            MUTABLE_MAP -> {
+            MUTABLE_MAP.parameterizedBy(STAR) -> {
                 add("CodecUtils.map(")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")
@@ -141,7 +151,7 @@ internal object RecordCodecGenerator {
         val namedCodec = parameter.getField<NamedCodec, String>("name")
         if (namedCodec != null) {
             try {
-                builder.add(builtinCodec.namedCodecs[namedCodec]!!.qualifiedName!!.asString())
+                builder.add(builtinCodec.namedCodecs[namedCodec]!!)
             } catch (e: NullPointerException) {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
@@ -195,12 +205,19 @@ internal object RecordCodecGenerator {
         if (declaration !is KSClassDeclaration) {
             throw IllegalArgumentException("Declaration is not a class")
         }
-        val codecName = (if (lazy) "Lazy" else "") + declaration.simpleName.asString() + "Codec"
+        val string = declaration.getField<NamedCodec, String>("name")
+
+        val codecName = (if (lazy) "Lazy" else "") + (string ?: declaration.simpleName.asString()) + "Codec"
         val type = MAP_CODEC_TYPE.parameterizedBy(
             if (lazy) LAZY.parameterizedBy(declaration.toClassName()) else declaration.toClassName()
         )
+
+        if (string != null) {
+            builtinCodec.addGeneratedNamedCodec(string, codecName)
+        }
+
         return PropertySpec.builder(codecName, type)
-            .addModifiers(KModifier.PRIVATE)
+            .addModifiers(if (string != null) KModifier.PRIVATE else KModifier.PUBLIC)
             .initializer(
                 CodeBlock.builder().apply {
                     add("CodecUtils.lazyMapCodec {\n")

@@ -34,11 +34,11 @@ data class TestData(
     val name: String,
     @FieldName("t") val thing: Map<String, String>,
     @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
-    val list: List<String>,
+    val list: MutableList<String>,
     val nullable: String = "",
     val complex: Complex = Complex("owdding", "test"),
     val complexMap: Map<Complex, Int>,
-    val enumKeyMap: Map<TestEnum, Int>,
+    val enumKeyMap: MutableMap<TestEnum, Int>,
 ) {
 
     companion object {
@@ -46,6 +46,7 @@ data class TestData(
     }
 }
 
+@NamedCodec("test")
 @GenerateCodec(generateLazy = true)
 data class NotComplex(
     val test1: String = "",
@@ -60,6 +61,5 @@ data class Complex2(
     val test3: String = "",
     val test4: String = "",
     val test5: String = "",
-    val test6: String = "",
-    val test7: String = "",
+    val test: Set<String>  = emptySet()
 )

@@ -23,7 +23,7 @@ annotation class IncludedCodec(
 )
 
 @Retention(AnnotationRetention.SOURCE)
-@Target(AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CLASS)
 annotation class NamedCodec(val name: String)
 
 @Retention(AnnotationRetention.SOURCE)

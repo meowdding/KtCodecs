@@ -58,8 +58,11 @@ internal object BuiltinCodecClasses {
                 { it.toString() }
             )
         
-            fun <T> set(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
+            fun <T> mutableSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
                 codec.listOf().xmap({ it.toMutableSet() }, { it.toList() })
+        
+            fun <T> set(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<Set<T>> =
+                codec.listOf().xmap({ it.toSet() }, { it.toList() })
         
             fun <T> list(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
                 codec.listOf().xmap({ it.toMutableList() }, { it })

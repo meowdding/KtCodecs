@@ -4,6 +4,7 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -11,8 +12,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.google.devtools.ksp:symbol-processing-api:2.0.20-1.0.25")
 
-    implementation("com.squareup:kotlinpoet:1.13.0")
-    implementation("com.squareup:kotlinpoet-ksp:1.13.0")
+    implementation("me.owdding.kotlinpoet:kotlinpoet-jvm:2.2.0-SNAPSHOT")
+    implementation("me.owdding.kotlinpoet:ksp:2.2.0-SNAPSHOT")
 }
 
 tasks.test {
