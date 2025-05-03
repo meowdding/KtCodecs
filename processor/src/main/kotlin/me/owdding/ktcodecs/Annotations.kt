@@ -28,4 +28,8 @@ annotation class NamedCodec(val name: String)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Unnamed
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class FieldName(val value: String)

@@ -11,6 +11,9 @@ enum class CostTypes(override val type: KClass<out Cost>): DispatchHelper<Cost> 
     ITEM(ItemCost::class),
     ESSENCE(EssenceCost::class),
     ;
+    companion object {
+        fun getType(name: String) = valueOf(name)
+    }
 }
 
 enum class Essence

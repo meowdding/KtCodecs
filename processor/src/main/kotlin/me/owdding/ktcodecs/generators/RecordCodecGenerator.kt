@@ -14,7 +14,9 @@ import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.BuiltinCodecs
 import me.owdding.ktcodecs.FieldName
 import me.owdding.ktcodecs.NamedCodec
+import me.owdding.ktcodecs.Unnamed
 import me.owdding.ktcodecs.utils.*
+import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import java.util.*
@@ -75,7 +77,12 @@ internal object RecordCodecGenerator {
         return false
     }
 
-    private fun CodeLineBuilder.addCodec(type: KSType) {
+    private fun CodeLineBuilder.addCodec(type: KSType, isUnnamed: Boolean = false) {
+        if (isUnnamed) {
+            add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
+            return
+        }
+
         when (type.resolveClassName()) {
             LAZY -> {
                 add("getLazyCodec<%T>()", type.arguments[0].type!!.resolve().toTypeName())
@@ -148,6 +155,7 @@ internal object RecordCodecGenerator {
 
         val builder = CodeLineBuilder()
 
+        val isUnnamed = parameter.getAnnotation<Unnamed>() != null
         val namedCodec = parameter.getField<NamedCodec, String>("name")
         if (namedCodec != null) {
             try {
@@ -156,7 +164,7 @@ internal object RecordCodecGenerator {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
         } else {
-            builder.addCodec(ksType)
+            builder.addCodec(ksType, isUnnamed)
         }
 
 
@@ -168,9 +176,11 @@ internal object RecordCodecGenerator {
 
         return when {
             parameter.hasDefault -> {
+                if (!isUnnamed) {
+                    builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                }
                 builder.add(
-                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.of(${getter}.%L) },\n",
-                    fieldName,
+                    ".forGetter { getter -> %T.of(${getter}.%L) },\n",
                     Optional::class.java,
                     name,
                 )
@@ -179,9 +189,11 @@ internal object RecordCodecGenerator {
             }
 
             nullable -> {
+                if (!isUnnamed) {
+                    builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                }
                 builder.add(
-                    ".optionalFieldOf(\"%L\").forGetter { getter -> %T.ofNullable(${getter}.%L) },\n",
-                    fieldName,
+                    ".forGetter { getter -> %T.ofNullable(${getter}.%L) },\n",
                     Optional::class.java,
                     name,
                 )
@@ -190,9 +202,11 @@ internal object RecordCodecGenerator {
             }
 
             else -> {
+                if (!isUnnamed) {
+                    builder.add(".fieldOf(\"%L\")", fieldName)
+                }
                 builder.add(
-                    ".fieldOf(\"%L\").forGetter { getter -> ${getter}.%L },\n",
-                    fieldName,
+                    ".forGetter { getter -> ${getter}.%L },\n",
                     name,
                 )
                 builder.build(this)

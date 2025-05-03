@@ -1,10 +1,7 @@
 package me.owdding.ktmodules
 
 import com.mojang.serialization.Codec
-import me.owdding.ktcodecs.FieldName
-import me.owdding.ktcodecs.GenerateCodec
-import me.owdding.ktcodecs.IncludedCodec
-import me.owdding.ktcodecs.NamedCodec
+import me.owdding.ktcodecs.*
 
 data class Complex(val namespace: String, val path: String) {
 
@@ -36,7 +33,7 @@ data class TestData(
     @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
     val list: MutableList<String>,
     val nullable: String = "",
-    val complex: Complex = Complex("owdding", "test"),
+    @Unnamed val complex: Complex,
     val complexMap: Map<Complex, Int>,
     val enumKeyMap: MutableMap<TestEnum, Int>,
 ) {
