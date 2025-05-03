@@ -89,6 +89,8 @@ internal object BuiltinCodecClasses {
                 get() = codec(type)
             val type: kotlin.reflect.KClass<out T>
             val name: String
+            val id: String
+                get() = name
         
             private fun <T: Any> codec(type: kotlin.reflect.KClass<T>): com.mojang.serialization.MapCodec<T> {
                 return $CODECS_IDENTIFIER.getMapCodec(type.java) as com.mojang.serialization.MapCodec<T>

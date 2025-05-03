@@ -33,7 +33,7 @@ internal object DispatchCodecGenerator {
 
         return PropertySpec.builder(type.toClassName().simpleName + "Codec",
             MAP_CODEC_TYPE.parameterizedBy(type.toClassName()))
-            .initializer("Codec.STRING.dispatchMap({it.type.name}, {%T.valueOf(it).codec})", declaration.toClassName()).build()
+            .initializer("Codec.STRING.dispatchMap({it.type.id}, {%T.getType(it).codec})", declaration.toClassName()).build()
     }
 
     private fun isValid(declaration: KSAnnotated, logger: KSPLogger): Boolean {
