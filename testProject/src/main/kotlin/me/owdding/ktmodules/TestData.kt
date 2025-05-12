@@ -31,7 +31,7 @@ data class TestData(
     val name: String,
     @FieldName("t") val thing: Map<String, String>,
     @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
-    val list: MutableList<String>,
+    @Compact val list: MutableList<String>,
     val nullable: String = "",
     @Unnamed val complex: Complex,
     val complexMap: Map<Complex, Int>,

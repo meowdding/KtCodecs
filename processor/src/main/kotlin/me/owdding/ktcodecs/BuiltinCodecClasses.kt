@@ -58,16 +58,40 @@ internal object BuiltinCodecClasses {
                 { it.toString() }
             )
         
+            fun <T> compact(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
+                com.mojang.serialization.Codec.either(codec.listOf(), codec).xmap(
+                    { it.map({ it }, { listOf<T>(it) }) },
+                    { if (it.size == 1) com.mojang.datafixers.util.Either.right(it[0]) else com.mojang.datafixers.util.Either.left(it) }
+                )
+        
+            fun <T> compactMutableSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
+                compact(codec).xmap({ it.toMutableSet() }, { it.toList() })
+        
             fun <T> mutableSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
                 codec.listOf().xmap({ it.toMutableSet() }, { it.toList() })
+        
+            fun <T> compactSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<Set<T>> =
+                compact(codec).xmap({ it.toSet() }, { it.toList() })
         
             fun <T> set(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<Set<T>> =
                 codec.listOf().xmap({ it.toSet() }, { it.toList() })
         
-            fun <T> list(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+            fun <T> compactList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
+                compact(codec).xmap({ it.toMutableList() }, { it })
+        
+            fun <T> list(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
                 codec.listOf().xmap({ it.toMutableList() }, { it })
         
-            fun <A, B> map(key: com.mojang.serialization.Codec<A>, value: com.mojang.serialization.Codec<B>): com.mojang.serialization.Codec<MutableMap<A, B>> =
+            fun <T> compactMutableList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+                compact(codec).xmap({ it.toMutableList() }, { it })
+        
+            fun <T> mutableList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+                codec.listOf().xmap({ it.toMutableList() }, { it })
+        
+            fun <A, B> map(
+                key: com.mojang.serialization.Codec<A>,
+                value: com.mojang.serialization.Codec<B>
+            ): com.mojang.serialization.Codec<MutableMap<A, B>> =
                 com.mojang.serialization.Codec.unboundedMap(key, value).xmap({ it.toMutableMap() }, { it })
         
             fun <T> lazyMapCodec(init: () -> com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<T> {
@@ -75,7 +99,7 @@ internal object BuiltinCodecClasses {
             }
         
             fun <T> toLazy(codec: com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<Lazy<T>> {
-                return codec.xmap({lazyOf(it)}, {it.value})
+                return codec.xmap({ lazyOf(it) }, { it.value })
             }
         }
     """.trimIndent()
