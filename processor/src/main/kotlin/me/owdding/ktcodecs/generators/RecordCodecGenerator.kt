@@ -80,7 +80,7 @@ internal object RecordCodecGenerator {
 
     private fun CodeLineBuilder.addUtil(name: String, isCompact: Boolean, parameters: CodeLineBuilder.() -> Unit) {
         if (isCompact) {
-            add("CodecUtils.compact${name.first().uppercase() + name.substring(1)}(")
+            add("CodecUtils.compact${name.replaceFirstChar(Char::uppercase)}(")
         } else {
             add("CodecUtils.${name}(")
         }
@@ -172,14 +172,14 @@ internal object RecordCodecGenerator {
         val builder = CodeLineBuilder()
 
         if (namedCodec != null) {
-            require(!isCompact) { "Compact and NamedCodec cannot be used together" }
+            if (isCompact) error("Compact and NamedCodec cannot be used together")
             try {
                 builder.add(builtinCodec.namedCodecs[namedCodec]!!)
             } catch (e: NullPointerException) {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
         } else {
-            require(!isCompact || !isUnnamed) { "Compact and Unnamed cannot be used together" }
+            if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
             builder.addCodec(ksType, isUnnamed, isCompact)
         }
 
