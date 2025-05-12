@@ -12,6 +12,7 @@ import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.BuiltinCodecs
+import me.owdding.ktcodecs.Compact
 import me.owdding.ktcodecs.FieldName
 import me.owdding.ktcodecs.NamedCodec
 import me.owdding.ktcodecs.Unnamed
@@ -77,7 +78,18 @@ internal object RecordCodecGenerator {
         return false
     }
 
-    private fun CodeLineBuilder.addCodec(type: KSType, isUnnamed: Boolean = false) {
+    private fun CodeLineBuilder.addUtil(name: String, isCompact: Boolean, parameters: CodeLineBuilder.() -> Unit) {
+        if (isCompact) {
+            add("CodecUtils.compact${name.replaceFirstChar(Char::uppercase)}(")
+        } else {
+            add("CodecUtils.${name}(")
+        }
+
+        this.parameters()
+        add(")")
+    }
+
+    private fun CodeLineBuilder.addCodec(type: KSType, isUnnamed: Boolean = false, isCompact: Boolean = false) {
         if (isUnnamed) {
             add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
             return
@@ -89,27 +101,28 @@ internal object RecordCodecGenerator {
             }
 
             List::class.asClassName() -> {
-                addCodec(type.arguments[0].type!!.resolve())
-                add(".listOf()")
+                addUtil("list", isCompact) {
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
             }
 
             MUTABLE_LIST -> {
-                add("CodecUtils.list(")
-                addCodec(type.arguments[0].type!!.resolve())
-                add(")")
+                addUtil("mutableList", isCompact) {
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
             }
 
             MUTABLE_SET -> {
-                add("CodecUtils.mutableSet(")
-                addCodec(type.arguments[0].type!!.resolve())
-                add(")")
+                addUtil("mutableSet", isCompact) {
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
             }
 
 
             Set::class.asClassName() -> {
-                add("CodecUtils.set(")
-                addCodec(type.arguments[0].type!!.resolve())
-                add(")")
+                addUtil("set", isCompact) {
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
             }
 
             Map::class.asClassName() -> {
@@ -148,23 +161,26 @@ internal object RecordCodecGenerator {
         lazy: Boolean,
     ): Pair<String, Type> {
         val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
-        val name = parameter.name!!.asString()
+        val namedCodec = parameter.getField<NamedCodec, String>("name")
+        val isCompact = parameter.getAnnotation<Compact>() != null
+        val isUnnamed = parameter.getAnnotation<Unnamed>() != null
 
+        val name = parameter.name!!.asString()
         val nullable = parameter.type.resolve().isMarkedNullable
         val ksType = parameter.type.resolve()
 
         val builder = CodeLineBuilder()
 
-        val isUnnamed = parameter.getAnnotation<Unnamed>() != null
-        val namedCodec = parameter.getField<NamedCodec, String>("name")
         if (namedCodec != null) {
+            if (isCompact) error("Compact and NamedCodec cannot be used together")
             try {
                 builder.add(builtinCodec.namedCodecs[namedCodec]!!)
             } catch (e: NullPointerException) {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
         } else {
-            builder.addCodec(ksType, isUnnamed)
+            if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
+            builder.addCodec(ksType, isUnnamed, isCompact)
         }
 
 
