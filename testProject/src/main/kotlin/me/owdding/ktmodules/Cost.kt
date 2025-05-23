@@ -4,6 +4,7 @@ import me.owdding.ktcodecs.GenerateCodec
 import me.owdding.ktcodecs.GenerateDispatchCodec
 import me.owdding.ktcodecs.IntRange
 import me.owdding.ktcodecs.generated.DispatchHelper
+import org.jetbrains.annotations.Range
 import kotlin.reflect.KClass
 
 @GenerateDispatchCodec(Cost::class)
@@ -22,7 +23,7 @@ enum class Essence
 @GenerateCodec
 data class EssenceCost(val essenceType: Essence, val amount: Int) : Cost(CostTypes.ITEM)
 @GenerateCodec
-data class ItemCost(val itemId: String, val amount: Int) : Cost(CostTypes.ITEM)
+data class ItemCost(val itemId: String, val amount: @Range(from = 1, to = 2) Int) : Cost(CostTypes.ITEM)
 @GenerateCodec
 data class CoinCost(@IntRange(min = 0) val amount: Int) : Cost(CostTypes.COINS)
 

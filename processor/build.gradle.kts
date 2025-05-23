@@ -14,6 +14,8 @@ dependencies {
 
     implementation("me.owdding.kotlinpoet:kotlinpoet-jvm:2.2.0-SNAPSHOT")
     implementation("me.owdding.kotlinpoet:ksp:2.2.0-SNAPSHOT")
+
+    implementation("org.jetbrains:annotations:26.0.2")
 }
 
 tasks.test {

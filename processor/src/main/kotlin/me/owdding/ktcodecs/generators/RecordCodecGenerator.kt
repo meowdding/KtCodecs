@@ -12,15 +12,19 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
+import com.squareup.kotlinpoet.ksp.toClassNameOrNull
 import com.squareup.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.*
 import me.owdding.ktcodecs.IntRange
 import me.owdding.ktcodecs.LongRange
+import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
+import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
 import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
+import org.jetbrains.annotations.Range
 import java.util.*
 
 internal object RecordCodecGenerator {
@@ -197,30 +201,44 @@ internal object RecordCodecGenerator {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
         } else {
+            val type = parameter.type.resolve().toClassNameOrNull()
             when {
-                parameter.isAnnotationPresent(IntRange::class) -> {
+                parameter.type.isAnnotationPresent(Range::class) -> {
+                    val (from,to) = parameter.type.getAnnotationInstance<Range>()
+                    when (type) {
+                        INT -> builder.addIntRange(from.toInt().coerceAtLeast(Int.MIN_VALUE), to.toInt().coerceAtMost(Int.MAX_VALUE))
+                        DOUBLE -> builder.addDoubleRange(from.toDouble().coerceAtLeast(Double.MIN_VALUE), to.toDouble().coerceAtMost(Double.MAX_VALUE))
+                        LONG -> builder.addLongRange(from, to)
+                        FLOAT -> builder.addFloatRange(from.toFloat().coerceAtLeast(Float.MIN_VALUE), to.toFloat().coerceAtMost(Float.MAX_VALUE))
+                    }
+                }
+
+                parameter.isAnnotationPresent(IntRange::class) && type == INT -> {
                     val intRange = parameter.getAnnotationInstance<IntRange>()
                     builder.addIntRange(intRange.min, intRange.max)
                 }
-                parameter.isAnnotationPresent(LongRange::class) -> {
+
+                parameter.isAnnotationPresent(LongRange::class) && type == LONG -> {
                     val longRange = parameter.getAnnotationInstance<LongRange>()
                     builder.addLongRange(longRange.min, longRange.max)
                 }
-                parameter.isAnnotationPresent(DoubleRange::class) -> {
+
+                parameter.isAnnotationPresent(DoubleRange::class) && type == DOUBLE -> {
                     val doubleRange = parameter.getAnnotationInstance<DoubleRange>()
                     builder.addDoubleRange(doubleRange.min, doubleRange.max)
                 }
-                parameter.isAnnotationPresent(FloatRange::class) -> {
+
+                parameter.isAnnotationPresent(FloatRange::class) && type == FLOAT -> {
                     val floatRange = parameter.getAnnotationInstance<FloatRange>()
                     builder.addFloatRange(floatRange.min, floatRange.max)
                 }
+
                 else -> {
                     if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
                     builder.addCodec(ksType, isUnnamed, isCompact)
                 }
             }
         }
-
 
 
         val getter = if (lazy) {
@@ -269,6 +287,9 @@ internal object RecordCodecGenerator {
             }
         }
     }
+
+    internal operator fun Range.component1(): Long = this.from
+    internal operator fun Range.component2(): Long = this.to
 
     fun generateCodec(declaration: KSAnnotated, lazy: Boolean): PropertySpec {
         if (declaration !is KSClassDeclaration) {

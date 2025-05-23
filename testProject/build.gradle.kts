@@ -16,6 +16,8 @@ dependencies {
     compileOnly(ksp(project(":processor"))!!)
 
     implementation("com.mojang:datafixerupper:8.0.16")
+
+    implementation("org.jetbrains:annotations:26.0.2")
 }
 
 ksp {
