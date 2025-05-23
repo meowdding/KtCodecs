@@ -101,6 +101,12 @@ internal object BuiltinCodecClasses {
             fun <T> toLazy(codec: com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<Lazy<T>> {
                 return codec.xmap({ lazyOf(it) }, { it.value })
             }
+            
+            fun longRange(min: Long, max: Long): com.mojang.serialization.Codec<Long> {
+               var checker = com.mojang.serialization.Codec.checkRange(min, max)
+               return com.mojang.serialization.Codec.LONG.flatXmap(checker, checker)
+            }
+
         }
     """.trimIndent()
 

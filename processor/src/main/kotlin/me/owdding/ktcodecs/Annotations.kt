@@ -19,7 +19,7 @@ annotation class IncludedCodec(
      */
     val keyable: Boolean = false,
 
-    val named: String = ":3"
+    val named: String = ":3",
 )
 
 @Retention(AnnotationRetention.SOURCE)
@@ -33,6 +33,34 @@ annotation class Unnamed
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class FieldName(val value: String)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class IntRange(
+    val min: Int = Int.MIN_VALUE,
+    val max: Int = Int.MAX_VALUE,
+)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class LongRange(
+    val min: Long = Long.MIN_VALUE,
+    val max: Long = Long.MAX_VALUE,
+)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class DoubleRange(
+    val min: Double = Double.MIN_VALUE,
+    val max: Double = Double.MAX_VALUE,
+)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class FloatRange(
+    val min: Float = Float.MIN_VALUE,
+    val max: Float = Float.MAX_VALUE,
+)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)

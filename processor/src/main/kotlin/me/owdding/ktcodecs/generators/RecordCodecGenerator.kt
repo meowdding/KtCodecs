@@ -1,5 +1,7 @@
 package me.owdding.ktcodecs.generators
 
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.isAnnotationPresent
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
@@ -11,13 +13,12 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
-import me.owdding.ktcodecs.BuiltinCodecs
-import me.owdding.ktcodecs.Compact
-import me.owdding.ktcodecs.FieldName
-import me.owdding.ktcodecs.NamedCodec
-import me.owdding.ktcodecs.Unnamed
+import me.owdding.ktcodecs.*
+import me.owdding.ktcodecs.IntRange
+import me.owdding.ktcodecs.LongRange
 import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotation
+import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import java.util.*
@@ -155,6 +156,23 @@ internal object RecordCodecGenerator {
         }
     }
 
+    private fun CodeLineBuilder.addIntRange(min: Int, max: Int) {
+        this.add("Codec.intRange($min, $max)")
+    }
+
+    private fun CodeLineBuilder.addLongRange(min: Long, max: Long) {
+        this.add("CodecUtils.longRange($min, $max)")
+    }
+
+    private fun CodeLineBuilder.addDoubleRange(min: Double, max: Double) {
+        this.add("Codec.doubleRange($min, $max)")
+    }
+
+    private fun CodeLineBuilder.addFloatRange(min: Float, max: Float) {
+        this.add("Codec.floatRange(${min}f, ${max}f)")
+    }
+
+    @OptIn(KspExperimental::class)
     private fun CodeBlock.Builder.createEntry(
         parameter: KSValueParameter,
         declaration: KSClassDeclaration,
@@ -179,9 +197,30 @@ internal object RecordCodecGenerator {
                 throw RuntimeException("Required unknown named codec $namedCodec", e)
             }
         } else {
-            if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
-            builder.addCodec(ksType, isUnnamed, isCompact)
+            when {
+                parameter.isAnnotationPresent(IntRange::class) -> {
+                    val intRange = parameter.getAnnotationInstance<IntRange>()
+                    builder.addIntRange(intRange.min, intRange.max)
+                }
+                parameter.isAnnotationPresent(LongRange::class) -> {
+                    val longRange = parameter.getAnnotationInstance<LongRange>()
+                    builder.addLongRange(longRange.min, longRange.max)
+                }
+                parameter.isAnnotationPresent(DoubleRange::class) -> {
+                    val doubleRange = parameter.getAnnotationInstance<DoubleRange>()
+                    builder.addDoubleRange(doubleRange.min, doubleRange.max)
+                }
+                parameter.isAnnotationPresent(FloatRange::class) -> {
+                    val floatRange = parameter.getAnnotationInstance<FloatRange>()
+                    builder.addFloatRange(floatRange.min, floatRange.max)
+                }
+                else -> {
+                    if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
+                    builder.addCodec(ksType, isUnnamed, isCompact)
+                }
+            }
         }
+
 
 
         val getter = if (lazy) {
