@@ -206,10 +206,10 @@ internal object RecordCodecGenerator {
                 parameter.type.isAnnotationPresent(Range::class) -> {
                     val (from,to) = parameter.type.getAnnotationInstance<Range>()
                     when (type) {
-                        INT -> builder.addIntRange(from.toInt().coerceAtLeast(Int.MIN_VALUE), to.toInt().coerceAtMost(Int.MAX_VALUE))
-                        DOUBLE -> builder.addDoubleRange(from.toDouble().coerceAtLeast(Double.MIN_VALUE), to.toDouble().coerceAtMost(Double.MAX_VALUE))
+                        INT -> builder.addIntRange(from.coerceAtLeast(Int.MIN_VALUE.toLong()).toInt(), to.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                        DOUBLE -> builder.addDoubleRange(from.coerceAtLeast(Double.MIN_VALUE.toLong()).toDouble(), to.coerceAtMost(Double.MAX_VALUE.toLong()).toDouble())
                         LONG -> builder.addLongRange(from, to)
-                        FLOAT -> builder.addFloatRange(from.toFloat().coerceAtLeast(Float.MIN_VALUE), to.toFloat().coerceAtMost(Float.MAX_VALUE))
+                        FLOAT -> builder.addFloatRange(from.coerceAtLeast(Float.MIN_VALUE.toLong()).toFloat(), to.coerceAtMost(Float.MAX_VALUE.toLong()).toFloat())
                     }
                 }
 
