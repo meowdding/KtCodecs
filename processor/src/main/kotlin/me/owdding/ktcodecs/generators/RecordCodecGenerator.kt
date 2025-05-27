@@ -319,7 +319,12 @@ internal object RecordCodecGenerator {
 
                     indent()
                     for (parameter in declaration.primaryConstructor!!.parameters) {
-                        createEntry(parameter, declaration, lazy).let { args.add(it) }
+                        try {
+                            createEntry(parameter, declaration, lazy).let { args.add(it) }
+                        } catch (t: Throwable) {
+                            logger.error("Failed to create codec for ${declaration.location}")
+                            throw t
+                        }
                     }
                     unindent()
 
