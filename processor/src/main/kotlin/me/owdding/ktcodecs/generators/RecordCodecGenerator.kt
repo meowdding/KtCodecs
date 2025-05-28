@@ -307,7 +307,7 @@ internal object RecordCodecGenerator {
         }
 
         return PropertySpec.builder(codecName, type)
-            .addModifiers(if (string != null) KModifier.PRIVATE else KModifier.PUBLIC)
+            .addModifiers(KModifier.PUBLIC)
             .initializer(
                 CodeBlock.builder().apply {
                     add("CodecUtils.lazyMapCodec {\n")
