@@ -203,15 +203,15 @@ internal data class ModuleContext(
             logger: KSPLogger,
         ): ModuleContext {
             return ModuleContext(
-                this.require("meowdding.codecs.project_name", options, logger).let {
+                this.require("project_name", options, logger).let {
                     it.replaceFirstChar { first -> first.uppercase() }
                 },
-                this.require("meowdding.codecs.package", options, logger),
+                this.require("package", options, logger),
             )
         }
 
         private fun require(option: String, map: Map<String, String>, logger: KSPLogger): String {
-            return requireNotNull(map[option], logger)
+            return requireNotNull(map["meowdding.codecs.$option"] ?: map["meowdding.$option"], logger)
         }
 
         private fun <T> requireNotNull(value: T?, logger: KSPLogger): T {
