@@ -8,7 +8,7 @@ import me.owdding.kotlinpoet.ksp.toClassName
 internal object AnnotationUtils {
 
     inline fun <reified T> KSAnnotated.getAnnotation(): KSAnnotation? = this.annotations.firstOrNull {
-        it.annotationType.resolve().declaration.qualifiedName!!.asString() == T::class.qualifiedName
+        it.annotationType.resolve().toClassName().canonicalName == T::class.qualifiedName
     }
 
     inline fun <reified A : Annotation, T> KSAnnotated.getField(name: String): T? {
