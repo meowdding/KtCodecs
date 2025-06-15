@@ -1,8 +1,8 @@
 package me.owdding.ktcodecs.generators
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.ksp.toClassName
+import me.owdding.kotlinpoet.CodeBlock
+import me.owdding.kotlinpoet.ksp.toClassName
 
 internal object RecordCodecInstanceGenerator {
 

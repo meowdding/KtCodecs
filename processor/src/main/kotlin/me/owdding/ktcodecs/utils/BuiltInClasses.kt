@@ -1,7 +1,7 @@
 package me.owdding.ktcodecs.utils
 
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.asClassName
+import me.owdding.kotlinpoet.ClassName
+import me.owdding.kotlinpoet.asClassName
 
 private const val SERIALIZATION = "com.mojang.serialization"
 private const val DATAFIXER = "com.mojang.datafixers"

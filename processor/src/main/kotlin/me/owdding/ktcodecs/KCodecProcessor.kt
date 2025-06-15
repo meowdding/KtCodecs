@@ -4,10 +4,10 @@ import com.google.devtools.ksp.containingFile
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.squareup.kotlinpoet.*
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.ksp.toClassName
-import com.squareup.kotlinpoet.ksp.writeTo
+import me.owdding.kotlinpoet.*
+import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import me.owdding.kotlinpoet.ksp.toClassName
+import me.owdding.kotlinpoet.ksp.writeTo
 import me.owdding.ktcodecs.generators.DispatchCodecGenerator
 import me.owdding.ktcodecs.generators.RecordCodecGenerator
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField

@@ -8,9 +8,9 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.ksp.toTypeName
+import me.owdding.kotlinpoet.ClassName
+import me.owdding.kotlinpoet.TypeName
+import me.owdding.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE

@@ -6,10 +6,10 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.ksp.toClassName
-import com.squareup.kotlinpoet.ksp.toTypeName
+import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import me.owdding.kotlinpoet.PropertySpec
+import me.owdding.kotlinpoet.ksp.toClassName
+import me.owdding.kotlinpoet.ksp.toTypeName
 import me.owdding.ktcodecs.BuiltinCodecs
 import me.owdding.ktcodecs.GenerateDispatchCodec
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField

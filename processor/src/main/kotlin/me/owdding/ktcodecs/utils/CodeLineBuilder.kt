@@ -1,6 +1,6 @@
 package me.owdding.ktcodecs.utils
 
-import com.squareup.kotlinpoet.CodeBlock
+import me.owdding.kotlinpoet.CodeBlock
 
 internal class CodeLineBuilder {
 
