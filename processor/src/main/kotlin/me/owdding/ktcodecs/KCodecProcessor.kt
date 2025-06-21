@@ -4,6 +4,7 @@ import com.google.devtools.ksp.containingFile
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import jdk.jfr.internal.TypeLibrary.addType
 import me.owdding.kotlinpoet.*
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.ksp.toClassName
@@ -49,6 +50,12 @@ internal class KCodecProcessor(
 
         val file = FileSpec.builder(context.generatedPackage, "${context.projectName}Codecs")
             .indent("    ")
+            // @file:Suppress("UNCHECKED_CAST")
+            .addAnnotation(
+                AnnotationSpec.builder(Suppress::class).apply {
+                    this.addMember("\"UNCHECKED_CAST\"")
+                }.build(),
+            )
             .addType(
                 TypeSpec.objectBuilder("${context.projectName}Codecs").apply {
                     this.addModifiers(KModifier.INTERNAL)
