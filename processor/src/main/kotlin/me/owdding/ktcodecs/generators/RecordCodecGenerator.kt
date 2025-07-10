@@ -204,12 +204,23 @@ internal object RecordCodecGenerator {
             val type = parameter.type.resolve().toClassNameOrNull()
             when {
                 parameter.type.isAnnotationPresent(Range::class) -> {
-                    val (from,to) = parameter.type.getAnnotationInstance<Range>()
+                    val (from, to) = parameter.type.getAnnotationInstance<Range>()
                     when (type) {
-                        INT -> builder.addIntRange(from.coerceAtLeast(Int.MIN_VALUE.toLong()).toInt(), to.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
-                        DOUBLE -> builder.addDoubleRange(from.coerceAtLeast(Double.MIN_VALUE.toLong()).toDouble(), to.coerceAtMost(Double.MAX_VALUE.toLong()).toDouble())
+                        INT -> builder.addIntRange(
+                            from.coerceAtLeast(Int.MIN_VALUE.toLong()).toInt(),
+                            to.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                        )
+
+                        DOUBLE -> builder.addDoubleRange(
+                            from.coerceAtLeast(Double.MIN_VALUE.toLong()).toDouble(),
+                            to.coerceAtMost(Double.MAX_VALUE.toLong()).toDouble()
+                        )
+
                         LONG -> builder.addLongRange(from, to)
-                        FLOAT -> builder.addFloatRange(from.coerceAtLeast(Float.MIN_VALUE.toLong()).toFloat(), to.coerceAtMost(Float.MAX_VALUE.toLong()).toFloat())
+                        FLOAT -> builder.addFloatRange(
+                            from.coerceAtLeast(Float.MIN_VALUE.toLong()).toFloat(),
+                            to.coerceAtMost(Float.MAX_VALUE.toLong()).toFloat()
+                        )
                     }
                 }
 
@@ -288,10 +299,23 @@ internal object RecordCodecGenerator {
         }
     }
 
+    fun extractNames(
+        declaration: KSClassDeclaration,
+    ): List<Pair<KSValueParameter, Type>> {
+        return declaration.primaryConstructor!!.parameters.map { parameter ->
+            val nullable = parameter.type.resolve().isMarkedNullable
+            parameter to when {
+                parameter.hasDefault -> Type.DEFAULT
+                nullable -> Type.NULLABLE
+                else -> Type.NORMAL
+            }
+        }
+    }
+
     internal operator fun Range.component1(): Long = this.from
     internal operator fun Range.component2(): Long = this.to
 
-    fun generateCodec(declaration: KSAnnotated, lazy: Boolean): PropertySpec {
+    fun generateCodec(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): PropertySpec {
         if (declaration !is KSClassDeclaration) {
             throw IllegalArgumentException("Declaration is not a class")
         }
@@ -315,32 +339,43 @@ internal object RecordCodecGenerator {
                     add("%T.mapCodec {\n", RECORD_CODEC_BUILDER_TYPE)
                     indent()
                     add("it.group(\n")
-                    val args = mutableListOf<Pair<String, Type>>()
 
                     indent()
                     for (parameter in declaration.primaryConstructor!!.parameters) {
                         try {
-                            createEntry(parameter, declaration, lazy).let { args.add(it) }
+                            createEntry(parameter, declaration, lazy)
                         } catch (t: Throwable) {
                             logger.error("Failed to create codec for ${declaration.location}")
                             throw t
                         }
                     }
+
+                    val args = extractNames(declaration)
                     unindent()
 
-                    add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
+                    if (annotation.createCodecMethod) {
+                        add(").apply(it, ::create$codecName)")
 
-                    indent()
-                    if (lazy) {
-                        add("lazy {")
-                    }
-                    RecordCodecInstanceGenerator.generateCodecInstance(this, args, declaration)
-                    if (lazy) {
-                        add("}")
-                    }
-                    unindent()
+                    } else {
 
-                    add("}\n")
+                        add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
+
+                        indent()
+                        if (lazy) {
+                            add("lazy {")
+                        }
+                        RecordCodecInstanceGenerator.generateCodecInstance(
+                            this,
+                            args.map { (p, type) -> p.name!!.asString() to type },
+                            declaration
+                        )
+                        if (lazy) {
+                            add("}")
+                        }
+                        unindent()
+
+                        add("}\n")
+                    }
                     unindent()
                     add("}\n")
                     unindent()

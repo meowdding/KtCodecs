@@ -51,12 +51,12 @@ data class NotComplex(
     val test6: String = "",
 )
 
-@GenerateCodec
+@GenerateCodec(createCodecMethod = true, generateLazy = true)
 data class Complex2(
     val test1: String = "",
     val test2: String = "",
     val test3: String = "",
     val test4: String = "",
     val test5: String = "",
-    val test: Set<String>  = emptySet()
+    val test: Set<String> = emptySet()
 )
