@@ -80,10 +80,10 @@ internal class KCodecProcessor(
                 TypeSpec.objectBuilder("${context.projectName}Codecs").apply {
                     this.addModifiers(KModifier.INTERNAL)
 
-                    generatedCodecs.forEach { println(it) }
                     this.addProperties(generatedCodecs)
                     this.addProperties(generatedLazyCodecs)
                     this.addProperties(dispatchCodecs)
+
                     this.addFunctions(lazyCodecCreators)
                     this.addFunctions(codecCreators)
 
