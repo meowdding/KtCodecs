@@ -1,5 +1,6 @@
 package me.owdding.ktcodecs.generators
 
+import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSAnnotated
@@ -41,8 +42,8 @@ internal object DispatchCodecGenerator {
             logger.error("Declaration is not a class")
         } else if (declaration.modifiers.contains(Modifier.INLINE)) {
             logger.error("@GenerateDispatchCodec can only be applied to non-inline classes")
-        } else if (!declaration.isPublic()) {
-            logger.error("@GenerateDispatchCodec can only be applied to public classes")
+        } else if (!declaration.isPublic() && !declaration.isInternal()) {
+            logger.error("@GenerateDispatchCodec can only be applied to public or internal classes")
         } else if (Modifier.ENUM !in declaration.modifiers) {
             logger.error("@GenerateDispatchCodec can only be applied to enum classes")
         }  else {

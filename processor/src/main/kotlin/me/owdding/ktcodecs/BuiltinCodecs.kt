@@ -85,8 +85,8 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
         fun isValid(declaration: KSAnnotated?, logger: KSPLogger): Boolean {
             if (declaration !is KSPropertyDeclaration) {
                 logger.error("Declaration is not a property")
-            } else if (!declaration.isPublic()) {
-                logger.error("@IncludedCodec can only be applied to public properties")
+            } else if (!declaration.isPublic() && !declaration.isInternal()) {
+                logger.error("@IncludedCodec can only be applied to public or internal properties")
             } else if (declaration.isLocal() || declaration.parentDeclaration == null || declaration.parentDeclaration !is KSClassDeclaration || (declaration.parentDeclaration as KSClassDeclaration).classKind != ClassKind.OBJECT) {
                 logger.error("@IncludedCodec can only be applied to public properties in objects")
             } else if (!declaration.parentDeclaration!!.isPublic() && !declaration.parentDeclaration!!.isInternal()) {
