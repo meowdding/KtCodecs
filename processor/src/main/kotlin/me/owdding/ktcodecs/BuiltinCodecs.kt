@@ -11,6 +11,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.TypeName
 import me.owdding.kotlinpoet.ksp.toTypeName
+import me.owdding.ktcodecs.generators.RecordCodecGenerator
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
@@ -54,7 +55,7 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
         this.namedCodecs.put(name, property)
     }
 
-    fun add(declaration: KSAnnotated, logger: KSPLogger) {
+    fun add(declaration: KSAnnotated, logger: KSPLogger) = runCatching<Any?> {
         if (isValid(declaration, logger)) {
             declaration as KSPropertyDeclaration
             val type = declaration.type.resolve().arguments[0].toTypeName()
@@ -66,7 +67,7 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
                     throw UnsupportedOperationException("Found duplicate named codec $isNamed")
                 }
                 logger.warn("Found named codec $isNamed")
-                return
+                return null
             }
 
             val isMapCodec = declaration.type.resolveClassName() == MAP_CODEC_TYPE
@@ -75,7 +76,9 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
                 logger.error("Duplicate included codec for $type")
             }
         }
-    }
+    }.onFailure {
+        RecordCodecGenerator.logger.error("Failed to add included codec ${declaration.location}")
+    }.getOrThrow()
 
     fun isStringType(type: TypeName): Boolean {
         return codecs[type]?.keyable ?: false

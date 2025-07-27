@@ -36,7 +36,7 @@ internal object DispatchCodecGenerator {
             MAP_CODEC_TYPE.parameterizedBy(type.toClassName()))
             .initializer("Codec.STRING.dispatchMap({it.type.id}, {%T.getType(it).codec})", declaration.toClassName()).build()
     }.onFailure {
-        RecordCodecGenerator.logger.error("Failed dispatch codec for ${declaration.location}")
+        logger.error("Failed dispatch codec for ${declaration.location}")
     }.getOrThrow()
 
     private fun isValid(declaration: KSAnnotated, logger: KSPLogger): Boolean {
