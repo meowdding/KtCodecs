@@ -34,7 +34,12 @@ internal object RecordCodecGenerator {
     lateinit var builtinCodec: BuiltinCodecs
     private const val MAX_PARAMETERS = 16
 
-    private fun isValid(parameter: KSValueParameter, logger: KSPLogger, builtinCodecs: BuiltinCodecs): Boolean {
+    private fun isValid(
+        parameter: KSValueParameter,
+        logger: KSPLogger,
+        builtinCodecs: BuiltinCodecs,
+        declaration: KSClassDeclaration,
+    ): Boolean = runCatching {
         val ksType = parameter.type.resolve()
         val name = parameter.name!!.asString()
         if (parameter.isVararg) {
@@ -49,13 +54,15 @@ internal object RecordCodecGenerator {
                 val type = keyType.toTypeName().copy(false)
                 if (Modifier.ENUM !in keyType.declaration.modifiers && !builtinCodecs.isStringType(type)) {
                     logger.error("parameter $name is a map with a key type that is not a string: $type")
-                    return false
+                    return@runCatching false
                 }
             }
-            return true
+            return@runCatching true
         }
-        return false
-    }
+        return@runCatching false
+    }.onFailure {
+        logger.error("Failed to validate record codec parameter ${parameter.name} for ${declaration.location}")
+    }.getOrThrow()
 
     fun isValid(declaration: KSAnnotated?, logger: KSPLogger, builtinCodecs: BuiltinCodecs): Boolean {
         if (declaration !is KSClassDeclaration) {
@@ -74,7 +81,14 @@ internal object RecordCodecGenerator {
             logger.error(
                 "@GenerateCodec can only be applied to classes with a primary constructor that has at most $MAX_PARAMETERS parameters",
             )
-        } else if (!declaration.primaryConstructor!!.parameters.all { isValid(it, logger, builtinCodecs) }) {
+        } else if (!declaration.primaryConstructor!!.parameters.all {
+                isValid(
+                    it,
+                    logger,
+                    builtinCodecs,
+                    declaration
+                )
+            }) {
             logger.error(
                 "@GenerateCodec can only be applied to classes with a primary constructor that has valid parameters, view the error above for more information",
             )
@@ -316,75 +330,78 @@ internal object RecordCodecGenerator {
     internal operator fun Range.component1(): Long = this.from
     internal operator fun Range.component2(): Long = this.to
 
-    fun generateCodec(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): PropertySpec {
-        if (declaration !is KSClassDeclaration) {
-            throw IllegalArgumentException("Declaration is not a class")
-        }
-        val string = declaration.getField<NamedCodec, String>("name")
+    fun generateCodec(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): PropertySpec =
+        runCatching {
+            if (declaration !is KSClassDeclaration) {
+                throw IllegalArgumentException("Declaration is not a class")
+            }
+            val string = declaration.getField<NamedCodec, String>("name")
 
-        val codecName = (if (lazy) "Lazy" else "") + (string ?: declaration.simpleName.asString()) + "Codec"
-        val type = MAP_CODEC_TYPE.parameterizedBy(
-            if (lazy) LAZY.parameterizedBy(declaration.toClassName()) else declaration.toClassName()
-        )
+            val codecName = (if (lazy) "Lazy" else "") + (string ?: declaration.simpleName.asString()) + "Codec"
+            val type = MAP_CODEC_TYPE.parameterizedBy(
+                if (lazy) LAZY.parameterizedBy(declaration.toClassName()) else declaration.toClassName()
+            )
 
-        if (string != null) {
-            builtinCodec.addGeneratedNamedCodec(string, codecName)
-        }
+            if (string != null) {
+                builtinCodec.addGeneratedNamedCodec(string, codecName)
+            }
 
-        return PropertySpec.builder(codecName, type)
-            .addModifiers(KModifier.PUBLIC)
-            .initializer(
-                CodeBlock.builder().apply {
-                    add("CodecUtils.lazyMapCodec {\n")
-                    indent()
-                    add("%T.mapCodec {\n", RECORD_CODEC_BUILDER_TYPE)
-                    indent()
-                    add("it.group(\n")
-
-                    indent()
-                    for (parameter in declaration.primaryConstructor!!.parameters) {
-                        try {
-                            createEntry(parameter, declaration, lazy)
-                        } catch (t: Throwable) {
-                            logger.error("Failed to create codec for ${declaration.location}")
-                            throw t
-                        }
-                    }
-
-                    val args = extractNames(declaration)
-                    unindent()
-
-                    if (annotation.createCodecMethod) {
-                        add(").apply(it, ::create$codecName)")
-
-                    } else {
-
-                        add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
+            return@runCatching PropertySpec.builder(codecName, type)
+                .addModifiers(KModifier.PUBLIC)
+                .initializer(
+                    CodeBlock.builder().apply {
+                        add("CodecUtils.lazyMapCodec {\n")
+                        indent()
+                        add("%T.mapCodec {\n", RECORD_CODEC_BUILDER_TYPE)
+                        indent()
+                        add("it.group(\n")
 
                         indent()
-                        if (lazy) {
-                            add("lazy {")
+                        for (parameter in declaration.primaryConstructor!!.parameters) {
+                            try {
+                                createEntry(parameter, declaration, lazy)
+                            } catch (t: Throwable) {
+                                logger.error("Failed to create codec for ${declaration.location}")
+                                throw t
+                            }
                         }
-                        RecordCodecInstanceGenerator.generateCodecInstance(
-                            this,
-                            args.map { (p, type) -> p.name!!.asString() to type },
-                            declaration
-                        )
-                        if (lazy) {
-                            add("}")
-                        }
+
+                        val args = extractNames(declaration)
                         unindent()
 
+                        if (annotation.createCodecMethod) {
+                            add(").apply(it, ::create$codecName)")
+
+                        } else {
+
+                            add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
+
+                            indent()
+                            if (lazy) {
+                                add("lazy {")
+                            }
+                            RecordCodecInstanceGenerator.generateCodecInstance(
+                                this,
+                                args.map { (p, type) -> p.name!!.asString() to type },
+                                declaration
+                            )
+                            if (lazy) {
+                                add("}")
+                            }
+                            unindent()
+
+                            add("}\n")
+                        }
+                        unindent()
                         add("}\n")
-                    }
-                    unindent()
-                    add("}\n")
-                    unindent()
-                    add("}\n")
-                }.build(),
-            )
-            .build()
-    }
+                        unindent()
+                        add("}\n")
+                    }.build(),
+                )
+                .build()
+        }.onFailure {
+            logger.error("Failed to generate ${"lazy".takeIf { lazy } ?: ""}record codec for ${declaration.location}")
+        }.getOrThrow()
 
     enum class Type {
         DEFAULT,

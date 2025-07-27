@@ -24,18 +24,20 @@ internal object DispatchCodecGenerator {
         return generatedCodecs
     }
 
-    private fun generateCodec(declaration: KSAnnotated, logger: KSPLogger, builtinCodecs: BuiltinCodecs): PropertySpec {
-        if (declaration !is KSClassDeclaration) {
+    private fun generateCodec(declaration: KSAnnotated, logger: KSPLogger, builtinCodecs: BuiltinCodecs): PropertySpec = runCatching{
+         if (declaration !is KSClassDeclaration) {
             throw IllegalArgumentException("Declaration is not a class")
         }
         val type = declaration.getField<GenerateDispatchCodec, KSType>("value")!!
 
         builtinCodecs.add(type.toTypeName(), type.toClassName().simpleName + "Codec", mapCodec = true)
 
-        return PropertySpec.builder(type.toClassName().simpleName + "Codec",
+        return@runCatching PropertySpec.builder(type.toClassName().simpleName + "Codec",
             MAP_CODEC_TYPE.parameterizedBy(type.toClassName()))
             .initializer("Codec.STRING.dispatchMap({it.type.id}, {%T.getType(it).codec})", declaration.toClassName()).build()
-    }
+    }.onFailure {
+        RecordCodecGenerator.logger.error("Failed dispatch codec for ${declaration.location}")
+    }.getOrThrow()
 
     private fun isValid(declaration: KSAnnotated, logger: KSPLogger): Boolean {
         if (declaration !is KSClassDeclaration) {

@@ -16,7 +16,7 @@ import java.util.*
 
 internal object CreatorMethodGenerator {
 
-    fun createMethod(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): FunSpec {
+    fun createMethod(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): FunSpec = runCatching {
         if (declaration !is KSClassDeclaration) {
             throw IllegalArgumentException("Declaration is not a class")
         }
@@ -25,7 +25,7 @@ internal object CreatorMethodGenerator {
 
         val args = RecordCodecGenerator.extractNames(declaration)
 
-        return FunSpec.builder("create$codecName").apply {
+        return@runCatching FunSpec.builder("create$codecName").apply {
             args.forEach { (parameter, type) ->
                 val typeName = parameter.type.resolve().toTypeName()
                 addParameter("p_" + parameter.name!!.asString(), if (type == RecordCodecGenerator.Type.NORMAL) typeName else Optional::class.asClassName().parameterizedBy(typeName))
@@ -61,6 +61,8 @@ internal object CreatorMethodGenerator {
                 addCode("}")
             }
         }.build()
-    }
+    }.onFailure {
+        RecordCodecGenerator.logger.error("Failed create method for ${declaration.location}")
+    }.getOrThrow()
 
 }

@@ -29,6 +29,7 @@ internal class KCodecProcessor(
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (ran) return emptyList()
         ran = true
+        RecordCodecGenerator.logger = logger
 
         val builtinCodecs = BuiltinCodecs()
         resolver.getSymbolsWithAnnotation(IncludedCodec::class.qualifiedName!!)
@@ -37,7 +38,6 @@ internal class KCodecProcessor(
         val annotated = resolver.getSymbolsWithAnnotation(GenerateCodec::class.qualifiedName!!).toList()
         val validGeneratedCodecs = annotated.filter { RecordCodecGenerator.isValid(it, logger, builtinCodecs) }
         RecordCodecGenerator.builtinCodec = builtinCodecs
-        RecordCodecGenerator.logger = logger
 
         val instances = validGeneratedCodecs.associateWith() {
             val lazy = it.getField<GenerateCodec, Boolean>("generateLazy")!!
