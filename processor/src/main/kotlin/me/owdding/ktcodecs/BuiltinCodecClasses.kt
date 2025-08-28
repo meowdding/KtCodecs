@@ -58,6 +58,12 @@ internal object BuiltinCodecClasses {
                 { it.toString() }
             )
         
+            val JSON_ELEMENT_CODEC = com.mojang.serialization.Codec.PASSTHROUGH.xmap(
+                { it.convert(com.mojang.serialization.JsonOps.INSTANCE).value },
+                { com.mojang.serialization.Dynamic(com.mojang.serialization.JsonOps.INSTANCE, it) }
+            )
+        
+        
             fun <T> compact(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
                 com.mojang.serialization.Codec.either(codec.listOf(), codec).xmap(
                     { it.map({ it }, { listOf<T>(it) }) },
