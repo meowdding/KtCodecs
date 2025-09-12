@@ -7,7 +7,7 @@ import me.owdding.ktcodecs.generated.DispatchHelper
 import org.jetbrains.annotations.Range
 import kotlin.reflect.KClass
 
-@GenerateDispatchCodec(Cost::class)
+@GenerateDispatchCodec(Cost::class, "cost")
 enum class CostTypes(override val type: KClass<out Cost>): DispatchHelper<Cost> {
     COINS(CoinCost::class),
     ITEM(ItemCost::class),

@@ -29,12 +29,13 @@ internal object DispatchCodecGenerator {
             throw IllegalArgumentException("Declaration is not a class")
         }
         val type = declaration.getField<GenerateDispatchCodec, KSType>("value")!!
+        val typeKey = declaration.getField<GenerateDispatchCodec, String>("typeKey")!!
 
         builtinCodecs.add(type.toTypeName(), type.toClassName().simpleName + "Codec", mapCodec = true)
 
         return@runCatching PropertySpec.builder(type.toClassName().simpleName + "Codec",
             MAP_CODEC_TYPE.parameterizedBy(type.toClassName()))
-            .initializer("Codec.STRING.dispatchMap({it.type.id}, {%T.getType(it).codec})", declaration.toClassName()).build()
+            .initializer("Codec.STRING.dispatchMap(%S, { it.type.id }, { %T.getType(it).codec })", typeKey, declaration.toClassName()).build()
     }.onFailure {
         logger.error("Failed dispatch codec for ${declaration.location}")
     }.getOrThrow()

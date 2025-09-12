@@ -12,7 +12,10 @@ annotation class GenerateCodec(
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.CLASS)
-annotation class GenerateDispatchCodec(val value: KClass<*>)
+annotation class GenerateDispatchCodec(
+    val value: KClass<*>,
+    val typeKey: String = "type",
+)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.PROPERTY)
