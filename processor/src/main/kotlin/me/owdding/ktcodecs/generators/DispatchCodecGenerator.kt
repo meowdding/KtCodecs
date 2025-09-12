@@ -37,6 +37,7 @@ internal object DispatchCodecGenerator {
             MAP_CODEC_TYPE.parameterizedBy(type.toClassName()))
             .initializer("Codec.STRING.dispatchMap(%S, { it.type.id }, { %T.getType(it).codec })", typeKey, declaration.toClassName()).build()
     }.onFailure {
+        it.printStackTrace()
         logger.error("Failed dispatch codec for ${declaration.location}")
     }.getOrThrow()
 
