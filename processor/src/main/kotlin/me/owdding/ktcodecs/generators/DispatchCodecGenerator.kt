@@ -29,7 +29,7 @@ internal object DispatchCodecGenerator {
             throw IllegalArgumentException("Declaration is not a class")
         }
         val type = declaration.getField<GenerateDispatchCodec, KSType>("value")!!
-        val typeKey = declaration.getField<GenerateDispatchCodec, String>("typeKey")!!
+        val typeKey = declaration.getField<GenerateDispatchCodec, String>("typeKey") ?: "type"
 
         builtinCodecs.add(type.toTypeName(), type.toClassName().simpleName + "Codec", mapCodec = true)
 
