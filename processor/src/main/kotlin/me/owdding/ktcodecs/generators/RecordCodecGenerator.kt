@@ -201,6 +201,7 @@ internal object RecordCodecGenerator {
         val namedCodec = parameter.getField<NamedCodec, String>("name")
         val isCompact = parameter.getAnnotation<Compact>() != null
         val isUnnamed = parameter.getAnnotation<Unnamed>() != null
+        val isLenient = parameter.getAnnotation<Lenient>() != null
 
         val name = parameter.name!!.asString()
         val nullable = parameter.type.resolve().isMarkedNullable
@@ -276,7 +277,11 @@ internal object RecordCodecGenerator {
         return when {
             parameter.hasDefault -> {
                 if (!isUnnamed) {
-                    builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                    if (isLenient) {
+                        builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
+                    } else {
+                        builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                    }
                 }
                 builder.add(
                     ".forGetter { getter -> %T.of(${getter}.%L) },\n",
@@ -289,7 +294,11 @@ internal object RecordCodecGenerator {
 
             nullable -> {
                 if (!isUnnamed) {
-                    builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                    if (isLenient) {
+                        builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
+                    } else {
+                        builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                    }
                 }
                 builder.add(
                     ".forGetter { getter -> %T.ofNullable(${getter}.%L) },\n",

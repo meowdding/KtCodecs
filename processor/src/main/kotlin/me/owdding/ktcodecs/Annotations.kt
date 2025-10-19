@@ -39,6 +39,10 @@ annotation class Unnamed
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Lenient
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class FieldName(val value: String)
 
 @Retention(AnnotationRetention.SOURCE)

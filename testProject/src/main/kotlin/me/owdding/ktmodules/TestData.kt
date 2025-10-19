@@ -32,7 +32,7 @@ data class TestData(
     @FieldName("t") val thing: Map<String, String>,
     @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
     @Compact val list: MutableList<String>,
-    val nullable: String = "",
+    @Lenient val nullable: String = "",
     @Unnamed val complex: Complex,
     val complexMap: Map<Complex, Int>,
     val enumKeyMap: MutableMap<TestEnum, Int>,
