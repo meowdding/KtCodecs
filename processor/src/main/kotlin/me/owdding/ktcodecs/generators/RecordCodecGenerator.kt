@@ -161,6 +161,20 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
+            EnumMap::class.asClassName() -> {
+                add("CodecUtils.enumMap(")
+                addCodec(type.arguments[0].type!!.resolve())
+                add(", ")
+                addCodec(type.arguments[1].type!!.resolve())
+                add(")")
+            }
+
+            EnumSet::class.asClassName() -> {
+                addUtil("enumSet", isCompact) {
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
+            }
+
             EITHER_TYPE -> {
                 add("%T.either(", CODEC_TYPE)
                 addCodec(type.arguments[0].type!!.resolve())
