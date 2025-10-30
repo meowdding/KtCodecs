@@ -161,6 +161,24 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
+            EnumMap::class.asClassName() -> {
+                add("CodecUtils.enumMap(")
+                add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
+                add(", ")
+                addCodec(type.arguments[0].type!!.resolve())
+                add(", ")
+                addCodec(type.arguments[1].type!!.resolve())
+                add(")")
+            }
+
+            EnumSet::class.asClassName() -> {
+                addUtil("enumSet", isCompact) {
+                    add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
+                    add(", ")
+                    addCodec(type.arguments[0].type!!.resolve())
+                }
+            }
+
             EITHER_TYPE -> {
                 add("%T.either(", CODEC_TYPE)
                 addCodec(type.arguments[0].type!!.resolve())
