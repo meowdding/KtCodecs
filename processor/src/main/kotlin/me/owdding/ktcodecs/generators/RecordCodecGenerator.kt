@@ -163,6 +163,8 @@ internal object RecordCodecGenerator {
 
             EnumMap::class.asClassName() -> {
                 add("CodecUtils.enumMap(")
+                add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
+                add(", ")
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")
                 addCodec(type.arguments[1].type!!.resolve())
@@ -171,6 +173,8 @@ internal object RecordCodecGenerator {
 
             EnumSet::class.asClassName() -> {
                 addUtil("enumSet", isCompact) {
+                    add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
+                    add(", ")
                     addCodec(type.arguments[0].type!!.resolve())
                 }
             }
