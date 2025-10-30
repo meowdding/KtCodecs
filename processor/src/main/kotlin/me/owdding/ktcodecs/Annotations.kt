@@ -35,7 +35,7 @@ annotation class NamedCodec(val name: String)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
-annotation class Unnamed
+annotation class Inline
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)

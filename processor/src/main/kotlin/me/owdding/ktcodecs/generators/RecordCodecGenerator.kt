@@ -218,7 +218,7 @@ internal object RecordCodecGenerator {
         val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
         val namedCodec = parameter.getField<NamedCodec, String>("name")
         val isCompact = parameter.getAnnotation<Compact>() != null
-        val isUnnamed = parameter.getAnnotation<Unnamed>() != null
+        val isInlined = parameter.getAnnotation<Inline>() != null
         val isLenient = parameter.getAnnotation<Lenient>() != null
 
         val name = parameter.name!!.asString()
@@ -279,8 +279,8 @@ internal object RecordCodecGenerator {
                 }
 
                 else -> {
-                    if (isCompact && isUnnamed) error("Compact and Unnamed cannot be used together")
-                    builder.addCodec(ksType, isUnnamed, isCompact)
+                    if (isCompact && isInlined) error("Compact and Unnamed cannot be used together")
+                    builder.addCodec(ksType, isInlined, isCompact)
                 }
             }
         }
@@ -294,7 +294,7 @@ internal object RecordCodecGenerator {
 
         return when {
             parameter.hasDefault -> {
-                if (!isUnnamed) {
+                if (!isInlined) {
                     if (isLenient) {
                         builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
                     } else {
@@ -311,7 +311,7 @@ internal object RecordCodecGenerator {
             }
 
             nullable -> {
-                if (!isUnnamed) {
+                if (!isInlined) {
                     if (isLenient) {
                         builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
                     } else {
@@ -328,7 +328,7 @@ internal object RecordCodecGenerator {
             }
 
             else -> {
-                if (!isUnnamed) {
+                if (!isInlined) {
                     builder.add(".fieldOf(\"%L\")", fieldName)
                 }
                 builder.add(

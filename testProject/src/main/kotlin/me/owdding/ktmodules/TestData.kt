@@ -33,7 +33,7 @@ data class TestData(
     @NamedCodec("cumulative_long_list") val cumLong: List<Long>,
     @Compact val list: MutableList<String>,
     @Lenient val nullable: String = "",
-    @Unnamed val complex: Complex,
+    @Inline val complex: Complex,
     val complexMap: Map<Complex, Int>,
     val enumKeyMap: MutableMap<TestEnum, Int>,
 ) {
