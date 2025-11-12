@@ -64,6 +64,8 @@ internal class KCodecProcessor(
         createBuiltin(generator, dependencies, "EnumCodec", BuiltinCodecClasses.ENUM_CODEC)
         createBuiltin(generator, dependencies, "CodecUtils", BuiltinCodecClasses.CODEC_UTILS)
         createBuiltin(generator, dependencies, "DispatchHelper", BuiltinCodecClasses.DISPATCH_HELPER)
+        createBuiltin(generator, dependencies, "AliasMapCodec", BuiltinCodecClasses.ALIAS_CODEC)
+        createBuiltin(generator, dependencies, "OptionalAliasMapCodec", BuiltinCodecClasses.OPTIONAL_ALIAS_CODEC)
 
         val annotatedDispatch = resolver.getSymbolsWithAnnotation(GenerateDispatchCodec::class.qualifiedName!!).toList()
         val dispatchCodecs = DispatchCodecGenerator.create(annotatedDispatch, logger, builtinCodecs)

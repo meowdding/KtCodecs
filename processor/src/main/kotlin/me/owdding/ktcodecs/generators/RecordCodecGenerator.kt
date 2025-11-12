@@ -210,23 +210,14 @@ internal object RecordCodecGenerator {
     }
 
     @OptIn(KspExperimental::class)
-    private fun CodeBlock.Builder.createEntry(
+    private fun addCodec(
+        isCompact: Boolean,
+        namedCodec: String?,
+        builder: CodeLineBuilder,
         parameter: KSValueParameter,
-        declaration: KSClassDeclaration,
-        lazy: Boolean,
-    ): Pair<String, Type> {
-        val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
-        val namedCodec = parameter.getField<NamedCodec, String>("name")
-        val isCompact = parameter.getAnnotation<Compact>() != null
-        val isInlined = parameter.getAnnotation<Inline>() != null
-        val isLenient = parameter.getAnnotation<Lenient>() != null
-
-        val name = parameter.name!!.asString()
-        val nullable = parameter.type.resolve().isMarkedNullable
-        val ksType = parameter.type.resolve()
-
-        val builder = CodeLineBuilder()
-
+        isInlined: Boolean,
+        ksType: KSType
+    ) {
         if (namedCodec != null) {
             if (isCompact) error("Compact and NamedCodec cannot be used together")
             try {
@@ -284,7 +275,34 @@ internal object RecordCodecGenerator {
                 }
             }
         }
+    }
 
+    private fun CodeLineBuilder.addAliases(fieldNames: List<String>) {
+        add("listOf(${fieldNames.joinToString(", ") { "\"%L\"" }}), ", *fieldNames.toTypedArray())
+    }
+
+    @OptIn(KspExperimental::class)
+    private fun CodeBlock.Builder.createEntry(
+        parameter: KSValueParameter,
+        declaration: KSClassDeclaration,
+        lazy: Boolean,
+    ): Pair<String, Type> {
+        val fieldNames = parameter.getField<FieldNames, ArrayList<String>>("value") ?: emptyList()
+        val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
+        val namedCodec = parameter.getField<NamedCodec, String>("name")
+        val isCompact = parameter.getAnnotation<Compact>() != null
+        val isInlined = parameter.getAnnotation<Inline>() != null
+        val isLenient = parameter.getAnnotation<Lenient>() != null
+
+        val name = parameter.name!!.asString()
+        val nullable = parameter.type.resolve().isMarkedNullable
+        val ksType = parameter.type.resolve()
+
+        val builder = CodeLineBuilder()
+
+        if (fieldNames.isEmpty()) {
+            addCodec(isCompact, namedCodec, builder, parameter, isInlined, ksType)
+        }
 
         val getter = if (lazy) {
             "getter.value"
@@ -293,43 +311,39 @@ internal object RecordCodecGenerator {
         }
 
         return when {
-            parameter.hasDefault -> {
+            parameter.hasDefault || nullable -> {
                 if (!isInlined) {
-                    if (isLenient) {
-                        builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
-                    } else {
-                        builder.add(".optionalFieldOf(\"%L\")", fieldName)
+                    when {
+                        fieldNames.isNotEmpty() -> {
+                            builder.add("OptionalAliasMapCodec(")
+                            builder.addAliases(fieldNames)
+                            builder.add("$isLenient, ")
+                            addCodec(isCompact, namedCodec, builder, parameter, false, ksType)
+                            builder.add(")")
+                        }
+                        isLenient -> builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
+                        else -> builder.add(".optionalFieldOf(\"%L\")", fieldName)
                     }
                 }
                 builder.add(
-                    ".forGetter { getter -> %T.of(${getter}.%L) },\n",
+                    ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}(${getter}.%L) },\n",
                     Optional::class.java,
                     name,
                 )
                 builder.build(this)
-                name to Type.DEFAULT
-            }
-
-            nullable -> {
-                if (!isInlined) {
-                    if (isLenient) {
-                        builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
-                    } else {
-                        builder.add(".optionalFieldOf(\"%L\")", fieldName)
-                    }
-                }
-                builder.add(
-                    ".forGetter { getter -> %T.ofNullable(${getter}.%L) },\n",
-                    Optional::class.java,
-                    name,
-                )
-                builder.build(this)
-                name to Type.NULLABLE
+                name to (if (nullable) Type.NULLABLE else Type.DEFAULT)
             }
 
             else -> {
                 if (!isInlined) {
-                    builder.add(".fieldOf(\"%L\")", fieldName)
+                    if (fieldNames.size > 1) {
+                        builder.add("AliasMapCodec(")
+                        builder.addAliases(fieldNames)
+                        addCodec(isCompact, namedCodec, builder, parameter, false, ksType)
+                        builder.add(")")
+                    } else {
+                        builder.add(".fieldOf(\"%L\")", fieldName)
+                    }
                 }
                 builder.add(
                     ".forGetter { getter -> ${getter}.%L },\n",

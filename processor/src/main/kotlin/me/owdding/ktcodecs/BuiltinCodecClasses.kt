@@ -48,6 +48,88 @@ internal object BuiltinCodecClasses {
     """.trimIndent()
 
     @Language("kotlin")
+    val ALIAS_CODEC = """
+        package $PACKAGE_IDENTIFIER
+
+        import com.mojang.serialization.Codec
+        import com.mojang.serialization.DataResult
+        import com.mojang.serialization.DynamicOps
+        import com.mojang.serialization.MapCodec
+        import com.mojang.serialization.MapLike
+        import com.mojang.serialization.RecordBuilder
+        import java.util.stream.Stream
+        
+        internal data class AliasMapCodec<V>(val keys: List<String>, val codec: Codec<V>) : MapCodec<V>() {
+            override fun <T : Any> keys(ops: DynamicOps<T>): Stream<T> = keys.stream().map { ops.createString(it) }
+        
+            override fun <T : Any> decode(
+                ops: DynamicOps<T>,
+                map: MapLike<T>,
+            ): DataResult<V> {
+                val values = keys.mapNotNull {
+                    map.get(it)?.let { value -> it to value }
+                }
+        
+                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (key) -> key }}], expected one!" }
+                return codec.parse(ops, values.firstOrNull()?.second ?: return DataResult.error { "Unable to find any of ${'$'}{keys.joinToString(", ")}" })
+            }
+        
+            override fun <T : Any> encode(
+                value: V,
+                ops: DynamicOps<T>,
+                prefix: RecordBuilder<T>,
+            ): RecordBuilder<T> {
+                return prefix.add(keys.first(), codec.encodeStart(ops, value))
+            }
+        }
+    """.trimIndent()
+
+    @Language("kotlin")
+    val OPTIONAL_ALIAS_CODEC = """
+        package $PACKAGE_IDENTIFIER
+
+        import com.mojang.serialization.Codec
+        import com.mojang.serialization.DataResult
+        import com.mojang.serialization.DynamicOps
+        import com.mojang.serialization.MapCodec
+        import com.mojang.serialization.MapLike
+        import com.mojang.serialization.RecordBuilder
+        import java.util.stream.Stream
+        import java.util.Optional
+        
+        internal data class OptionalAliasMapCodec<V : Any>(val keys: List<String>, val lenient: Boolean, val codec: Codec<V>) : MapCodec<Optional<V>>() {
+            override fun <T : Any> keys(ops: DynamicOps<T>): Stream<T> = keys.stream().map { ops.createString(it) }
+        
+            override fun <T : Any> decode(
+                ops: DynamicOps<T>,
+                map: MapLike<T>,
+            ): DataResult<Optional<V>> {
+                val values = keys.mapNotNull {
+                    map.get(it)?.let { value -> it to value }
+                }
+        
+                if (values.isEmpty()) return DataResult.success(Optional.empty())
+                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (key) -> key }}], expected exactly one!" }
+        
+                val result = codec.parse(ops, values.firstOrNull()?.second ?: return DataResult.error { "Unable to find any of ${'$'}{keys.joinToString(", ")}" })
+                if (result.isError && lenient) return DataResult.success(Optional.empty())
+        
+                return result.map(Optional<V>::of).setPartial(result.resultOrPartial())
+            }
+        
+            override fun <T : Any> encode(
+                value: Optional<V>,
+                ops: DynamicOps<T>,
+                prefix: RecordBuilder<T>,
+            ): RecordBuilder<T> {
+                if (value.isEmpty) return prefix
+                return prefix.add(keys.first(), codec.encodeStart(ops, value.get()))
+            }
+        }
+
+    """.trimIndent()
+
+    @Language("kotlin")
     val CODEC_UTILS = """
         package $PACKAGE_IDENTIFIER
         

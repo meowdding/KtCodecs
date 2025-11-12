@@ -47,6 +47,10 @@ annotation class FieldName(val value: String)
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class FieldNames(vararg val value: String)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class IntRange(
     val min: Int = Int.MIN_VALUE,
     val max: Int = Int.MAX_VALUE,
