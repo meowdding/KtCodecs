@@ -60,3 +60,10 @@ data class Complex2(
     val test5: String = "",
     val test: Set<String> = emptySet()
 )
+
+class Generic1<T>(val string: String) {
+    companion object {
+        @IncludedCodec
+        val CODEC = Codec.STRING.xmap({ Generic1<Any>(it) }, Generic1<*>::string)
+    }
+}

@@ -181,8 +181,8 @@ internal class KCodecProcessor(
                             this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
                             this.returns(MAP_CODEC_TYPE.parameterizedBy(STAR))
                             this.addCode("return when {\n")
-                            builtinCodecs.filter { (_, info) -> info.mapCodec }.forEach { type, info ->
-                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type)
+                            builtinCodecs.filter { (_, info) -> info.mapCodec }.forEach { (type, info) ->
+                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type.clean())
                             }
                             for (codec in validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateDefault")!! }) {
                                 val string = codec.getField<NamedCodec, String>("name")
@@ -205,8 +205,8 @@ internal class KCodecProcessor(
                             this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
                             this.returns(CODEC_TYPE.parameterizedBy(STAR))
                             this.addCode("return when {\n")
-                            builtinCodecs.filterNot { (_, info) -> info.mapCodec }.forEach { type, info ->
-                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type)
+                            builtinCodecs.filterNot { (_, info) -> info.mapCodec }.forEach { (type, info) ->
+                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type.clean())
                             }
                             this.addCode("    clazz.isEnum -> EnumCodec.forKCodec(clazz.enumConstants)\n")
                             this.addCode("    else -> getMapCodec(clazz).codec()\n")
@@ -229,6 +229,11 @@ internal class KCodecProcessor(
                     .replace(BuiltinCodecClasses.CODECS_IDENTIFIER, "${context.projectName}Codecs")
             )
         }
+    }
+
+    fun TypeName.clean() = when (this) {
+        is ParameterizedTypeName -> this.rawType
+        else -> this
     }
 
 }
