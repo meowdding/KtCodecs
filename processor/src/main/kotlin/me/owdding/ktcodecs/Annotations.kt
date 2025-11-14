@@ -80,3 +80,7 @@ annotation class FloatRange(
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class Compact()
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class CustomGetterMethod

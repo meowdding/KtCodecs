@@ -293,6 +293,7 @@ internal object RecordCodecGenerator {
         val isCompact = parameter.getAnnotation<Compact>() != null
         val isInlined = parameter.getAnnotation<Inline>() != null
         val isLenient = parameter.getAnnotation<Lenient>() != null
+        val customGetterMethod = parameter.getAnnotation<CustomGetterMethod>() != null
 
         val name = parameter.name!!.asString()
         val nullable = parameter.type.resolve().isMarkedNullable
@@ -310,6 +311,8 @@ internal object RecordCodecGenerator {
             "getter"
         }
 
+        val customGetterMethodName = parameter.name!!.asString().replaceFirstChar { it.uppercaseChar() }
+
         return when {
             parameter.hasDefault || nullable -> {
                 if (!isInlined) {
@@ -321,15 +324,20 @@ internal object RecordCodecGenerator {
                             addCodec(isCompact, namedCodec, builder, parameter, false, ksType)
                             builder.add(")")
                         }
+
                         isLenient -> builder.add(".lenientOptionalFieldOf(\"%L\")", fieldName)
                         else -> builder.add(".optionalFieldOf(\"%L\")", fieldName)
                     }
                 }
-                builder.add(
-                    ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}(${getter}.%L) },\n",
-                    Optional::class.java,
-                    name,
-                )
+                if (customGetterMethod) {
+                    builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n")
+                } else {
+                    builder.add(
+                        ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L) },\n",
+                        Optional::class.java,
+                        name,
+                    )
+                }
                 builder.build(this)
                 name to (if (nullable) Type.NULLABLE else Type.DEFAULT)
             }
@@ -345,10 +353,16 @@ internal object RecordCodecGenerator {
                         builder.add(".fieldOf(\"%L\")", fieldName)
                     }
                 }
-                builder.add(
-                    ".forGetter { getter -> ${getter}.%L },\n",
-                    name,
-                )
+                if (customGetterMethod) {
+                    builder.add(
+                        ".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n",
+                    )
+                } else {
+                    builder.add(
+                        ".forGetter { getter -> $getter.%L },\n",
+                        name,
+                    )
+                }
                 builder.build(this)
                 name to Type.NORMAL
             }
