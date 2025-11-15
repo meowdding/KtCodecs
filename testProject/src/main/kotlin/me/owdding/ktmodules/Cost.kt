@@ -27,7 +27,9 @@ data class EssenceCost(val essenceType: Essence, val amount: Int) : Cost(CostTyp
 @GenerateCodec
 data class ItemCost(
     @CustomGetterMethod @Lenient @FieldNames("item_id", "item_id2", "item_id3") val itemId: String = "",
-    @CustomGetterMethod @FieldNames("amount1", "amount2", "amount3") val amount: @Range(from = 1, to = 2) Int
+    @CustomGetterMethod @FieldNames("amount1", "amount2", "amount3") val amount: @Range(from = 1, to = 2) Int,
+    @OptionalIfEmpty val collection: List<Int> = emptyList(),
+    @OptionalIfEmpty val map: Map<String, Long> = emptyMap(),
 ) : Cost(CostTypes.ITEM) {
 
     fun serializeItemId() = if (itemId.isEmpty()) Optional.empty() else Optional.of(itemId)

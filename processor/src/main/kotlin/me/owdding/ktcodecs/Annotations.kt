@@ -84,3 +84,8 @@ annotation class Compact()
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class CustomGetterMethod
+
+/** Only applies to classes that extend [Collection] or [Map] */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalIfEmpty

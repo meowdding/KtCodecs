@@ -6,12 +6,11 @@ import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
+import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.CodeBlock
 import me.owdding.kotlinpoet.KModifier
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.PropertySpec
-import me.owdding.kotlinpoet.asClassName
-import me.owdding.kotlinpoet.asTypeName
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toClassNameOrNull
 import me.owdding.kotlinpoet.ksp.toTypeName
@@ -21,9 +20,9 @@ import me.owdding.ktcodecs.LongRange
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
 import me.owdding.ktcodecs.utils.*
-import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
+import me.owdding.ktcodecs.utils.AnnotationUtils.hasAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
 import org.jetbrains.annotations.Range
 import java.util.*
@@ -47,8 +46,7 @@ internal object RecordCodecGenerator {
         } else if (parameter.hasDefault && ksType.isMarkedNullable) {
             logger.error("parameter $name is nullable and has a default value")
         } else {
-            val isMap = ksType.starProjection().toTypeName() == Map::class.asTypeName() || ksType.starProjection()
-                .toTypeName() == MutableMap::class.asTypeName()
+            val isMap = ksType.extendsOneOf(MAP)
             if (isMap) {
                 val keyType = ksType.arguments.getRef(0).resolve()
                 val type = keyType.toTypeName().copy(false)
@@ -120,7 +118,7 @@ internal object RecordCodecGenerator {
                 add("getLazyCodec<%T>()", type.arguments[0].type!!.resolve().toTypeName())
             }
 
-            List::class.asClassName() -> {
+            LIST -> {
                 addUtil("list", isCompact) {
                     addCodec(type.arguments[0].type!!.resolve())
                 }
@@ -139,13 +137,13 @@ internal object RecordCodecGenerator {
             }
 
 
-            Set::class.asClassName() -> {
+            SET -> {
                 addUtil("set", isCompact) {
                     addCodec(type.arguments[0].type!!.resolve())
                 }
             }
 
-            Map::class.asClassName() -> {
+            MAP -> {
                 add("%T.unboundedMap(", CODEC_TYPE)
                 addCodec(type.arguments[0].type!!.resolve())
                 add(", ")
@@ -161,7 +159,7 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
-            EnumMap::class.asClassName() -> {
+            ENUM_MAP -> {
                 add("CodecUtils.enumMap(")
                 add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
                 add(", ")
@@ -171,7 +169,7 @@ internal object RecordCodecGenerator {
                 add(")")
             }
 
-            EnumSet::class.asClassName() -> {
+            ENUM_SET -> {
                 addUtil("enumSet", isCompact) {
                     add("${type.arguments[0].type!!.resolveClassName().canonicalName}::class.java")
                     add(", ")
@@ -290,10 +288,11 @@ internal object RecordCodecGenerator {
         val fieldNames = parameter.getField<FieldNames, ArrayList<String>>("value") ?: emptyList()
         val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
         val namedCodec = parameter.getField<NamedCodec, String>("name")
-        val isCompact = parameter.getAnnotation<Compact>() != null
-        val isInlined = parameter.getAnnotation<Inline>() != null
-        val isLenient = parameter.getAnnotation<Lenient>() != null
-        val customGetterMethod = parameter.getAnnotation<CustomGetterMethod>() != null
+        val isCompact = parameter.hasAnnotation<Compact>()
+        val isInlined = parameter.hasAnnotation<Inline>()
+        val isLenient = parameter.hasAnnotation<Lenient>()
+        val customGetterMethod = parameter.hasAnnotation<CustomGetterMethod>()
+        val optionalEmpty = parameter.hasAnnotation<OptionalIfEmpty>()
 
         val name = parameter.name!!.asString()
         val nullable = parameter.type.resolve().isMarkedNullable
@@ -331,6 +330,12 @@ internal object RecordCodecGenerator {
                 }
                 if (customGetterMethod) {
                     builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n")
+                } else if (optionalEmpty) {
+                    if (!ksType.extendsOneOf(COLLECTION, MAP)) logger.error("@OptionalIfEmpty can only be applied to collections or maps!")
+                    builder.add(
+                        ".forGetter { getter -> getter.%L.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
+                        name
+                    )
                 } else {
                     builder.add(
                         ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L) },\n",
@@ -367,6 +372,11 @@ internal object RecordCodecGenerator {
                 name to Type.NORMAL
             }
         }
+    }
+
+    internal fun KSType.extendsOneOf(vararg classNames: ClassName): Boolean {
+        val superTypes = (declaration as? KSClassDeclaration)?.superTypes.orEmpty().map(KSTypeReference::resolve) + this // "this" gets added in case someone uses the raw map/collection types
+        return superTypes.any { it.resolveClassName() in classNames }
     }
 
     fun extractNames(
