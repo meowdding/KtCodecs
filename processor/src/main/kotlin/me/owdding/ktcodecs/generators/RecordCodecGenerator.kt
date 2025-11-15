@@ -14,9 +14,14 @@ import me.owdding.kotlinpoet.PropertySpec
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toClassNameOrNull
 import me.owdding.kotlinpoet.ksp.toTypeName
+import me.owdding.kotlinpoet.numberLiteral
+import me.owdding.kotlinpoet.stringLiteralWithQuotes
 import me.owdding.ktcodecs.*
 import me.owdding.ktcodecs.IntRange
 import me.owdding.ktcodecs.LongRange
+import me.owdding.ktcodecs.OptionalDouble
+import me.owdding.ktcodecs.OptionalInt
+import me.owdding.ktcodecs.OptionalLong
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
 import me.owdding.ktcodecs.utils.*
@@ -279,6 +284,23 @@ internal object RecordCodecGenerator {
         add("listOf(${fieldNames.joinToString(", ") { "\"%L\"" }}), ", *fieldNames.toTypedArray())
     }
 
+    fun asKotlinLiteral(value: Any): String = when (value) {
+        is String -> stringLiteralWithQuotes(value)
+        is Boolean -> value.toString()
+        // forgot to add the L in kotlin poet
+        is Long -> numberLiteral(value).let { if (it.last().equals('L', true)) it else it + 'L' }
+        is Number -> numberLiteral(value)
+        else -> error("Unsupported literal: $value")
+    }
+
+    private val optionalAnnotations = listOf(
+        OptionalString::class, OptionalBoolean::class, OptionalInt::class, OptionalLong::class, OptionalFloat::class, OptionalDouble::class,
+    )
+
+    private fun KSValueParameter.getDefaultOptional(): Any? {
+        return optionalAnnotations.firstNotNullOfOrNull { getField(it, "default") }
+    }
+
     @OptIn(KspExperimental::class)
     private fun CodeBlock.Builder.createEntry(
         parameter: KSValueParameter,
@@ -291,8 +313,11 @@ internal object RecordCodecGenerator {
         val isCompact = parameter.hasAnnotation<Compact>()
         val isInlined = parameter.hasAnnotation<Inline>()
         val isLenient = parameter.hasAnnotation<Lenient>()
+
+
         val customGetterMethod = parameter.hasAnnotation<CustomGetterMethod>()
         val optionalEmpty = parameter.hasAnnotation<OptionalIfEmpty>()
+        val defaultOptional: Any? = parameter.getDefaultOptional()
 
         val name = parameter.name!!.asString()
         val nullable = parameter.type.resolve().isMarkedNullable
@@ -328,20 +353,38 @@ internal object RecordCodecGenerator {
                         else -> builder.add(".optionalFieldOf(\"%L\")", fieldName)
                     }
                 }
-                if (customGetterMethod) {
-                    builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n")
-                } else if (optionalEmpty) {
-                    if (!ksType.extendsOneOf(COLLECTION, MAP)) logger.error("@OptionalIfEmpty can only be applied to collections or maps!")
-                    builder.add(
-                        ".forGetter { getter -> getter.%L.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
-                        name
-                    )
-                } else {
-                    builder.add(
-                        ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L) },\n",
-                        Optional::class.java,
-                        name,
-                    )
+
+                when {
+                    customGetterMethod -> {
+                        builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n")
+                    }
+
+                    optionalEmpty -> {
+                        if (!ksType.extendsOneOf(
+                                COLLECTION,
+                                MAP
+                            )
+                        ) logger.error("@OptionalIfEmpty can only be applied to collections or maps!")
+                        builder.add(
+                            ".forGetter { getter -> getter.%L.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
+                            name
+                        )
+                    }
+
+                    defaultOptional != null -> {
+                        builder.add(
+                            ".forGetter { getter -> getter.%L.let { if (it == %L) Optional.empty() else Optional.of(it) } },\n",
+                            name, asKotlinLiteral(defaultOptional),
+                        )
+                    }
+
+                    else -> {
+                        builder.add(
+                            ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L) },\n",
+                            Optional::class.java,
+                            name,
+                        )
+                    }
                 }
                 builder.build(this)
                 name to (if (nullable) Type.NULLABLE else Type.DEFAULT)
@@ -375,7 +418,8 @@ internal object RecordCodecGenerator {
     }
 
     internal fun KSType.extendsOneOf(vararg classNames: ClassName): Boolean {
-        val superTypes = (declaration as? KSClassDeclaration)?.superTypes.orEmpty().map(KSTypeReference::resolve) + this // "this" gets added in case someone uses the raw map/collection types
+        val superTypes = (declaration as? KSClassDeclaration)?.superTypes.orEmpty()
+            .map(KSTypeReference::resolve) + this // "this" gets added in case someone uses the raw map/collection types
         return superTypes.any { it.resolveClassName() in classNames }
     }
 

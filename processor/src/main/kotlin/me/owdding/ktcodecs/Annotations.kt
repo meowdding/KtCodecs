@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package me.owdding.ktcodecs
 
 import kotlin.reflect.KClass
@@ -89,3 +91,28 @@ annotation class CustomGetterMethod
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class OptionalIfEmpty
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalString(val default: String = "")
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalBoolean(val default: Boolean)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalInt(val default: Int = 0)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalLong(val default: Long = 0L)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalFloat(val default: Float = 0.0f)
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalDouble(val default: Double = 0.0)
+

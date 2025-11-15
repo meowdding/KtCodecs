@@ -4,18 +4,21 @@ import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.*
 import me.owdding.kotlinpoet.ksp.toClassName
+import kotlin.reflect.KClass
 
 internal object AnnotationUtils {
 
-    inline fun <reified T> KSAnnotated.getAnnotation(): KSAnnotation? = this.annotations.firstOrNull {
-        it.annotationType.resolve().toClassName().canonicalName == T::class.qualifiedName
+    fun <T : Any> KSAnnotated.getAnnotation(clazz: KClass<T>): KSAnnotation? = this.annotations.firstOrNull {
+        it.annotationType.resolve().toClassName().canonicalName == clazz.qualifiedName
     }
+    inline fun <reified T : Any> KSAnnotated.getAnnotation(): KSAnnotation? = getAnnotation(T::class)
 
-    inline fun <reified T> KSAnnotated.hasAnnotation(): Boolean = getAnnotation<T>() != null
+    inline fun <reified T : Any> KSAnnotated.hasAnnotation(): Boolean = getAnnotation<T>() != null
 
-    inline fun <reified A : Annotation, T> KSAnnotated.getField(name: String): T? {
-        return this.getAnnotation<A>()?.getAs(name)
-    }
+    fun <A : Annotation, T> KSAnnotated.getField(clazz: KClass<A>, name: String): T? =
+        this.getAnnotation(clazz)?.getAs(name)
+
+    inline fun <reified A : Annotation, T> KSAnnotated.getField(name: String): T? = getField(A::class, name)
 
     @Suppress("UNCHECKED_CAST")
     fun <T> KSAnnotation.getAs(id: String) =

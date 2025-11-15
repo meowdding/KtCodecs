@@ -12,8 +12,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.google.devtools.ksp:symbol-processing-api:2.0.20-1.0.25")
 
-    implementation("me.owdding.kotlinpoet:kotlinpoet-jvm:1.0.1")
-    implementation("me.owdding.kotlinpoet:ksp:1.0.1")
+    implementation("me.owdding.kotlinpoet:kotlinpoet-jvm:1.0.3")
+    implementation("me.owdding.kotlinpoet:ksp:1.0.3")
 
     implementation("org.jetbrains:annotations:26.0.2")
 }
