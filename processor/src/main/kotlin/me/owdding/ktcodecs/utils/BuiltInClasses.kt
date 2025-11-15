@@ -6,6 +6,7 @@ import java.util.*
 
 private const val SERIALIZATION = "com.mojang.serialization"
 private const val DATAFIXER = "com.mojang.datafixers"
+private const val COLLECTIONS = "kotlin.collections"
 
 internal val CODEC_TYPE = ClassName(SERIALIZATION, "Codec")
 internal val LAZY = Lazy::class.asClassName()
@@ -13,9 +14,10 @@ internal val MAP_CODEC_TYPE = ClassName(SERIALIZATION, "MapCodec")
 internal val RECORD_CODEC_BUILDER_TYPE = ClassName("$SERIALIZATION.codecs", "RecordCodecBuilder")
 internal val EITHER_TYPE = ClassName("$DATAFIXER.util", "Either")
 
-internal val MUTABLE_MAP = MutableMap::class.asClassName()
-internal val MUTABLE_SET = MutableSet::class.asClassName()
-internal val MUTABLE_LIST = MutableList::class.asClassName()
+// These need to be made like this instead of using asClassName
+internal val MUTABLE_MAP = ClassName(COLLECTIONS, "MutableMap")
+internal val MUTABLE_SET = ClassName(COLLECTIONS, "MutableSet")
+internal val MUTABLE_LIST = ClassName(COLLECTIONS, "MutableList")
 
 internal val COLLECTION = Collection::class.asClassName()
 internal val MAP = Map::class.asClassName()
