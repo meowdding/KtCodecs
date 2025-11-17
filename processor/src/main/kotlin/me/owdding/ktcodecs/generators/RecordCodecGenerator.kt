@@ -52,7 +52,7 @@ internal object RecordCodecGenerator {
             logger.error("parameter $name is nullable and has a default value")
         } else {
             val isMap = ksType.extendsOneOf(MAP)
-            if (isMap) {
+            if (isMap && !parameter.hasAnnotation<NamedCodec>()) {
                 val keyType = ksType.arguments.getRef(0).resolve()
                 val type = keyType.toTypeName().copy(false)
                 if (Modifier.ENUM !in keyType.declaration.modifiers && !builtinCodecs.isStringType(type)) {
