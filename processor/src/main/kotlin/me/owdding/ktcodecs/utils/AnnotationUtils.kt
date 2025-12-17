@@ -1,6 +1,7 @@
 package me.owdding.ktcodecs.utils
 
 import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.findActualType
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.*
 import me.owdding.kotlinpoet.ksp.toClassName
@@ -25,7 +26,9 @@ internal object AnnotationUtils {
         this.arguments.firstOrNull { it.name?.asString() == id }?.value as? T
 
     fun KSTypeReference.resolveClassName() = this.resolve().resolveClassName()
-    fun KSType.resolveClassName() = (this.starProjection().declaration as KSClassDeclaration).toClassName()
+    fun KSType.resolveClassName() = runCatching { (this.starProjection().declaration as KSClassDeclaration) }.getOrElse {
+        (this.starProjection().declaration as KSTypeAlias).findActualType()
+    }.toClassName()
     @OptIn(KspExperimental::class)
     inline fun <reified T : Annotation>  KSAnnotated.getAnnotationInstance() = this.getAnnotationsByType(T::class).first()
 
