@@ -25,7 +25,7 @@ internal val LIST = List::class.asClassName()
 internal val SET = Set::class.asClassName()
 
 internal val ENUM_MAP = EnumMap::class.asClassName()
-internal val ENUM_SET = Set::class.asClassName()
+internal val ENUM_SET = EnumSet::class.asClassName()
 
 internal val INT = Int::class.asClassName()
 internal val DOUBLE = Double::class.asClassName()
