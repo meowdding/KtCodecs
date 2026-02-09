@@ -80,7 +80,7 @@ annotation class FloatRange(
 )
 
 @Retention(AnnotationRetention.SOURCE)
-@Target(AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 annotation class Compact()
 
 @Retention(AnnotationRetention.SOURCE)

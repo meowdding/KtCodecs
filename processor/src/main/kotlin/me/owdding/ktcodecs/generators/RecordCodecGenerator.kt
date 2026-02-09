@@ -5,30 +5,69 @@ import com.google.devtools.ksp.isAnnotationPresent
 import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.*
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeArgument
+import com.google.devtools.ksp.symbol.KSTypeReference
+import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.symbol.Modifier
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.CodeBlock
 import me.owdding.kotlinpoet.KModifier
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.PropertySpec
+import me.owdding.kotlinpoet.asClassName
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toClassNameOrNull
 import me.owdding.kotlinpoet.ksp.toTypeName
 import me.owdding.kotlinpoet.numberLiteral
 import me.owdding.kotlinpoet.stringLiteralWithQuotes
-import me.owdding.ktcodecs.*
+import me.owdding.ktcodecs.BuiltinCodecs
+import me.owdding.ktcodecs.Compact
+import me.owdding.ktcodecs.CustomGetterMethod
+import me.owdding.ktcodecs.DoubleRange
+import me.owdding.ktcodecs.FieldName
+import me.owdding.ktcodecs.FieldNames
+import me.owdding.ktcodecs.FloatRange
+import me.owdding.ktcodecs.Inline
 import me.owdding.ktcodecs.IntRange
+import me.owdding.ktcodecs.Lenient
 import me.owdding.ktcodecs.LongRange
+import me.owdding.ktcodecs.NamedCodec
+import me.owdding.ktcodecs.OptionalBoolean
 import me.owdding.ktcodecs.OptionalDouble
+import me.owdding.ktcodecs.OptionalFloat
+import me.owdding.ktcodecs.OptionalIfEmpty
 import me.owdding.ktcodecs.OptionalInt
 import me.owdding.ktcodecs.OptionalLong
+import me.owdding.ktcodecs.OptionalString
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
-import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.AnnotationUtils.hasAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
+import me.owdding.ktcodecs.utils.CODEC_TYPE
+import me.owdding.ktcodecs.utils.COLLECTION
+import me.owdding.ktcodecs.utils.CodeLineBuilder
+import me.owdding.ktcodecs.utils.DOUBLE
+import me.owdding.ktcodecs.utils.EITHER_TYPE
+import me.owdding.ktcodecs.utils.ENUM_MAP
+import me.owdding.ktcodecs.utils.ENUM_SET
+import me.owdding.ktcodecs.utils.FLOAT
+import me.owdding.ktcodecs.utils.GenerateCodecData
+import me.owdding.ktcodecs.utils.INT
+import me.owdding.ktcodecs.utils.LAZY
+import me.owdding.ktcodecs.utils.LIST
+import me.owdding.ktcodecs.utils.LONG
+import me.owdding.ktcodecs.utils.MAP
+import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
+import me.owdding.ktcodecs.utils.MUTABLE_LIST
+import me.owdding.ktcodecs.utils.MUTABLE_MAP
+import me.owdding.ktcodecs.utils.MUTABLE_SET
+import me.owdding.ktcodecs.utils.RECORD_CODEC_BUILDER_TYPE
+import me.owdding.ktcodecs.utils.SET
 import org.jetbrains.annotations.Range
 import java.util.*
 
@@ -113,6 +152,9 @@ internal object RecordCodecGenerator {
     }
 
     private fun CodeLineBuilder.addCodec(type: KSType, isUnnamed: Boolean = false, isCompact: Boolean = false) {
+        val isCompact = isCompact || type.annotations.filter {
+            it.annotationType.resolve().toClassName() == Compact::class.java.asClassName()
+        }.any()
         if (isUnnamed) {
             add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
             return
@@ -219,7 +261,7 @@ internal object RecordCodecGenerator {
         builder: CodeLineBuilder,
         parameter: KSValueParameter,
         isInlined: Boolean,
-        ksType: KSType
+        ksType: KSType,
     ) {
         if (namedCodec != null) {
             if (isCompact) error("Compact and NamedCodec cannot be used together")
@@ -294,7 +336,12 @@ internal object RecordCodecGenerator {
     }
 
     private val optionalAnnotations = listOf(
-        OptionalString::class, OptionalBoolean::class, OptionalInt::class, OptionalLong::class, OptionalFloat::class, OptionalDouble::class,
+        OptionalString::class,
+        OptionalBoolean::class,
+        OptionalInt::class,
+        OptionalLong::class,
+        OptionalFloat::class,
+        OptionalDouble::class,
     )
 
     private fun KSValueParameter.getDefaultOptional(): Any? {
@@ -310,10 +357,9 @@ internal object RecordCodecGenerator {
         val fieldNames = parameter.getField<FieldNames, ArrayList<String>>("value") ?: emptyList()
         val fieldName = parameter.getField<FieldName, String>("value") ?: parameter.name!!.asString()
         val namedCodec = parameter.getField<NamedCodec, String>("name")
-        val isCompact = parameter.hasAnnotation<Compact>()
+        val isCompact = parameter.hasAnnotation<Compact>() || parameter.type.hasAnnotation<Compact>()
         val isInlined = parameter.hasAnnotation<Inline>()
-        val isLenient = parameter.hasAnnotation<Lenient>()
-
+        val isLenient = parameter.hasAnnotation<Lenient>() || parameter.type.hasAnnotation<Lenient>()
 
         val customGetterMethod = parameter.hasAnnotation<CustomGetterMethod>()
         val optionalEmpty = parameter.hasAnnotation<OptionalIfEmpty>()

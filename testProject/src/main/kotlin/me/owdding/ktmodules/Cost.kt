@@ -30,6 +30,7 @@ data class ItemCost(
     @CustomGetterMethod @FieldNames("amount1", "amount2", "amount3") val amount: @Range(from = 1, to = 2) Int,
     @OptionalIfEmpty val collection: List<Int> = emptyList(),
     @OptionalIfEmpty val map: Map<String, Long> = emptyMap(),
+    val testtt: Map<String, @Compact List<Int>> = emptyMap()
 ) : Cost(CostTypes.ITEM) {
 
     fun serializeItemId() = if (itemId.isEmpty()) Optional.empty() else Optional.of(itemId)
@@ -39,4 +40,4 @@ data class ItemCost(
 @GenerateCodec
 data class CoinCost(@IntRange(min = 0) val amount: Int) : Cost(CostTypes.COINS)
 
-abstract class Cost(val type: CostTypes)
+abstract class Cost(val cost: CostTypes)
