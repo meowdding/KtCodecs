@@ -70,7 +70,7 @@ internal object BuiltinCodecClasses {
                     map.get(it)?.let { value -> it to value }
                 }
         
-                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (key) -> key }}], expected one!" }
+                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (first) -> first }}], expected one!" }
                 return codec.parse(ops, values.firstOrNull()?.second ?: return DataResult.error { "Unable to find any of ${'$'}{keys.joinToString(", ")}" })
             }
         
@@ -109,7 +109,7 @@ internal object BuiltinCodecClasses {
                 }
         
                 if (values.isEmpty()) return DataResult.success(Optional.empty())
-                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (key) -> key }}], expected exactly one!" }
+                if (values.size > 1) return DataResult.error { "Found multiple keys [${'$'}{values.joinToString(separator = ",") { (first) -> first }}], expected exactly one!" }
         
                 val result = codec.parse(ops, values.firstOrNull()?.second ?: return DataResult.error { "Unable to find any of ${'$'}{keys.joinToString(", ")}" })
                 if (result.isError && lenient) return DataResult.success(Optional.empty())
