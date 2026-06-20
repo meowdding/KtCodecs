@@ -5,13 +5,7 @@ import com.google.devtools.ksp.isAnnotationPresent
 import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSTypeArgument
-import com.google.devtools.ksp.symbol.KSTypeReference
-import com.google.devtools.ksp.symbol.KSValueParameter
-import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.*
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.CodeBlock
 import me.owdding.kotlinpoet.KModifier
@@ -23,50 +17,29 @@ import me.owdding.kotlinpoet.ksp.toClassNameOrNull
 import me.owdding.kotlinpoet.ksp.toTypeName
 import me.owdding.kotlinpoet.numberLiteral
 import me.owdding.kotlinpoet.stringLiteralWithQuotes
-import me.owdding.ktcodecs.BuiltinCodecs
-import me.owdding.ktcodecs.Compact
-import me.owdding.ktcodecs.CustomGetterMethod
-import me.owdding.ktcodecs.DoubleRange
-import me.owdding.ktcodecs.FieldName
-import me.owdding.ktcodecs.FieldNames
-import me.owdding.ktcodecs.FloatRange
-import me.owdding.ktcodecs.Inline
+import me.owdding.ktcodecs.*
 import me.owdding.ktcodecs.IntRange
-import me.owdding.ktcodecs.Lenient
 import me.owdding.ktcodecs.LongRange
-import me.owdding.ktcodecs.NamedCodec
-import me.owdding.ktcodecs.OptionalBoolean
 import me.owdding.ktcodecs.OptionalDouble
-import me.owdding.ktcodecs.OptionalFloat
-import me.owdding.ktcodecs.OptionalIfEmpty
 import me.owdding.ktcodecs.OptionalInt
 import me.owdding.ktcodecs.OptionalLong
-import me.owdding.ktcodecs.OptionalString
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
 import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
+import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.AnnotationUtils.hasAnnotation
 import me.owdding.ktcodecs.utils.AnnotationUtils.resolveClassName
-import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.COLLECTION
-import me.owdding.ktcodecs.utils.CodeLineBuilder
 import me.owdding.ktcodecs.utils.DOUBLE
-import me.owdding.ktcodecs.utils.EITHER_TYPE
-import me.owdding.ktcodecs.utils.ENUM_MAP
-import me.owdding.ktcodecs.utils.ENUM_SET
 import me.owdding.ktcodecs.utils.FLOAT
-import me.owdding.ktcodecs.utils.GenerateCodecData
 import me.owdding.ktcodecs.utils.INT
-import me.owdding.ktcodecs.utils.LAZY
 import me.owdding.ktcodecs.utils.LIST
 import me.owdding.ktcodecs.utils.LONG
 import me.owdding.ktcodecs.utils.MAP
-import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 import me.owdding.ktcodecs.utils.MUTABLE_LIST
 import me.owdding.ktcodecs.utils.MUTABLE_MAP
 import me.owdding.ktcodecs.utils.MUTABLE_SET
-import me.owdding.ktcodecs.utils.RECORD_CODEC_BUILDER_TYPE
 import me.owdding.ktcodecs.utils.SET
 import org.jetbrains.annotations.Range
 import java.util.*
@@ -87,8 +60,8 @@ internal object RecordCodecGenerator {
         val name = parameter.name!!.asString()
         if (parameter.isVararg) {
             logger.error("parameter $name is a vararg")
-        } else if (parameter.hasDefault && ksType.isMarkedNullable) {
-            logger.error("parameter $name is nullable and has a default value")
+        } else if (parameter.hasDefault && ksType.isMarkedNullable && !parameter.hasAnnotation<OptionalNullable>()) {
+            logger.error("parameter $name is nullable and has a default value, use @OptionalNullable if the default value is null to bypass this warning")
         } else {
             val isMap = ksType.extendsOneOf(MAP)
             if (isMap && !parameter.hasAnnotation<NamedCodec>()) {

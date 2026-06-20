@@ -10,4 +10,5 @@ data class OptionalTest(
     @OptionalFloat(54154.59f) val float: Float = 54154.59f,
     @OptionalDouble(5145.514) val double: Double = 5145.514,
     @OptionalBoolean(false) val bool: Boolean = false,
+    @OptionalNullable val nullableValue: String? = null,
 )

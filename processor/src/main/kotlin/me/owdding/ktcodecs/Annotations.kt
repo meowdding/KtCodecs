@@ -81,11 +81,16 @@ annotation class FloatRange(
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
-annotation class Compact()
+annotation class Compact
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.VALUE_PARAMETER)
 annotation class CustomGetterMethod
+
+/** Bypasses the warning given when a property is nullable and has a default value */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class OptionalNullable
 
 /** Only applies to classes that extend [Collection] or [Map] */
 @Retention(AnnotationRetention.SOURCE)
