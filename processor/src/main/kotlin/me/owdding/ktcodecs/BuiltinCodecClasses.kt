@@ -9,6 +9,7 @@ internal object BuiltinCodecClasses {
 
     @Language("kotlin")
     val ENUM_CODEC = """
+        @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
         
         internal class EnumCodec<T> private constructor(private val codec: com.mojang.serialization.Codec<T>) : com.mojang.serialization.Codec<T> {
@@ -49,6 +50,7 @@ internal object BuiltinCodecClasses {
 
     @Language("kotlin")
     val ALIAS_CODEC = """
+        @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
 
         import com.mojang.serialization.Codec
@@ -86,6 +88,7 @@ internal object BuiltinCodecClasses {
 
     @Language("kotlin")
     val OPTIONAL_ALIAS_CODEC = """
+        @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
 
         import com.mojang.serialization.Codec
@@ -131,6 +134,7 @@ internal object BuiltinCodecClasses {
 
     @Language("kotlin")
     val CODEC_UTILS = """
+        @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
         
         internal object CodecUtils {
@@ -227,6 +231,7 @@ internal object BuiltinCodecClasses {
 
     @Language("kotlin")
     val DISPATCH_HELPER = """
+        @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
         
         internal interface DispatchHelper<T: Any> {
