@@ -72,10 +72,10 @@ internal class KCodecProcessor(
 
         val file = FileSpec.builder(context.generatedPackage, "${context.projectName}Codecs")
             .indent("    ")
-            // @file:Suppress("UNCHECKED_CAST")
+            // @file:Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
             .addAnnotation(
                 AnnotationSpec.builder(Suppress::class).apply {
-                    this.addMember("\"UNCHECKED_CAST\"")
+                    this.addMember("\"UNCHECKED_CAST\", \"PLATFORM_CLASS_MAPPED_TO_KOTLIN\"")
                 }.build(),
             )
             .addType(
