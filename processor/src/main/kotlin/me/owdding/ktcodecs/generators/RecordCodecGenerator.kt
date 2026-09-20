@@ -383,7 +383,10 @@ internal object RecordCodecGenerator {
                                 COLLECTION,
                                 MAP
                             )
-                        ) logger.error("@OptionalIfEmpty can only be applied to collections or maps!")
+                        ) {
+                            logger.error("@OptionalIfEmpty can only be applied to collections or maps!")
+                            logger.warn("ksType: ${ksType.resolveClassName()}, superTypes: ${ksType.getSuperTypes().map { it.resolveClassName() }}")
+                        }
                         builder.add(
                             ".forGetter { getter -> getter.%L.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
                             name
@@ -436,10 +439,19 @@ internal object RecordCodecGenerator {
         }
     }
 
+    // we need to iterate through the super types of the class' supertypes as well
+    private fun KSType.getSuperTypes(): Set<KSType> = buildSet {
+        add(this@getSuperTypes)
+
+        val declaration = declaration as? KSClassDeclaration ?: return@buildSet
+        for (superType in declaration.superTypes) {
+            val resolved = superType.resolve()
+            addAll(resolved.getSuperTypes())
+        }
+    }
+
     internal fun KSType.extendsOneOf(vararg classNames: ClassName): Boolean {
-        val superTypes = (declaration as? KSClassDeclaration)?.superTypes.orEmpty()
-            .map(KSTypeReference::resolve) + this // "this" gets added in case someone uses the raw map/collection types
-        return superTypes.any { it.resolveClassName() in classNames }
+        return getSuperTypes().any { it.resolveClassName() in classNames }
     }
 
     fun extractNames(
