@@ -385,7 +385,6 @@ internal object RecordCodecGenerator {
         if (declaration.typeParameters.isNotEmpty()) {
             resolver = declaration.typeParameters.toTypeParameterResolver()
         }
-        val cast = if (declaration.typeParameters.isNotEmpty() && parameter.type.resolve().usesTypeParameter()) ".unsafeCast()" else ""
 
         val customGetterMethodName = parameter.name!!.asString().replaceFirstChar { it.uppercaseChar() }
 
@@ -408,7 +407,7 @@ internal object RecordCodecGenerator {
 
                 when {
                     customGetterMethod -> {
-                        builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName()$cast },\n")
+                        builder.add(".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n")
                     }
 
                     optionalEmpty -> {
@@ -421,21 +420,21 @@ internal object RecordCodecGenerator {
                             logger.warn("ksType: ${ksType.resolveClassName()}, superTypes: ${ksType.getSuperTypes().map { it.resolveClassName() }}")
                         }
                         builder.add(
-                            ".forGetter { getter -> getter.%L$cast.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
+                            ".forGetter { getter -> getter.%L.let { if (it.isEmpty()) Optional.empty() else Optional.of(it) } },\n",
                             name
                         )
                     }
 
                     defaultOptional != null -> {
                         builder.add(
-                            ".forGetter { getter -> getter.%L$cast.let { if (it == %L) Optional.empty() else Optional.of(it) } },\n",
+                            ".forGetter { getter -> getter.%L.let { if (it == %L) Optional.empty() else Optional.of(it) } },\n",
                             name, asKotlinLiteral(defaultOptional),
                         )
                     }
 
                     else -> {
                         builder.add(
-                            ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L$cast) },\n",
+                            ".forGetter { getter -> %T.of${if (nullable) "Nullable" else ""}($getter.%L) },\n",
                             Optional::class.java,
                             name,
                         )
@@ -458,11 +457,11 @@ internal object RecordCodecGenerator {
                 }
                 if (customGetterMethod) {
                     builder.add(
-                        ".forGetter { getter -> $getter.serialize$customGetterMethodName()$cast },\n",
+                        ".forGetter { getter -> $getter.serialize$customGetterMethodName() },\n",
                     )
                 } else {
                     builder.add(
-                        ".forGetter { getter -> $getter.%L$cast },\n",
+                        ".forGetter { getter -> $getter.%L },\n",
                         name,
                     )
                 }

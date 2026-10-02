@@ -113,16 +113,6 @@ internal class KCodecProcessor(
                     )
 
                     this.addFunction(
-                        FunSpec.builder("unsafeCast").apply {
-                            this.addModifiers(KModifier.PRIVATE, KModifier.INLINE)
-                            this.addTypeVariable(TypeVariableName("T"))
-                            this.receiver(ANY.copy(nullable = true))
-                            this.returns(TypeVariableName("T"))
-                            this.addCode("return this as T")
-                        }.build(),
-                    )
-
-                    this.addFunction(
                         FunSpec.builder("get").apply {
                             this.addModifiers(KModifier.PRIVATE, KModifier.OPERATOR)
                             this.receiver(KTYPE)
