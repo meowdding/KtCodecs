@@ -3,10 +3,14 @@ package me.owdding.ktcodecs.utils
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.asClassName
 import java.util.*
+import kotlin.reflect.KType
 
 private const val SERIALIZATION = "com.mojang.serialization"
 private const val DATAFIXER = "com.mojang.datafixers"
 private const val COLLECTIONS = "kotlin.collections"
+
+internal val JAVA_CLASS = ClassName("java.lang", "Class")
+internal val KTYPE = KType::class.asClassName()
 
 internal val CODEC_TYPE = ClassName(SERIALIZATION, "Codec")
 internal val LAZY = Lazy::class.asClassName()

@@ -1,6 +1,5 @@
-package me.owdding.ktmodules
+package me.owdding.ktcodecs
 
-import me.owdding.ktcodecs.*
 import java.util.EnumMap
 import java.util.EnumSet
 

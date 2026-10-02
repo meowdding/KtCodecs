@@ -4,4 +4,5 @@ internal data class GenerateCodecData(
     val generateLazy: Boolean,
     val generateDefault: Boolean,
     val createCodecMethod: Boolean,
+    val isGeneric: Boolean,
 )

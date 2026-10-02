@@ -52,7 +52,7 @@ internal object CreatorMethodGenerator {
             addCode(CodeBlock.builder().apply {
                 RecordCodecInstanceGenerator.generateCodecInstance(
                     this,
-                    args.map { (k, type) -> k.name!!.asString() to type },
+                    args,
                     declaration
                 )
             }.build())

@@ -1,7 +1,5 @@
-package me.owdding.ktmodules
+package me.owdding.ktcodecs
 
-import me.owdding.ktcodecs.*
-import me.owdding.ktcodecs.IntRange
 import me.owdding.ktcodecs.generated.DispatchHelper
 import org.jetbrains.annotations.Range
 import java.util.*

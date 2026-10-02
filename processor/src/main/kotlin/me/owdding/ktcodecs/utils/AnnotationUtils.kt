@@ -26,10 +26,12 @@ internal object AnnotationUtils {
         this.arguments.firstOrNull { it.name?.asString() == id }?.value as? T
 
     fun KSTypeReference.resolveClassName() = this.resolve().resolveClassName()
-    fun KSType.resolveClassName() = runCatching { (this.starProjection().declaration as KSClassDeclaration) }.getOrElse {
+    fun KSType.resolveClassName() = runCatching {
+        (this.starProjection().declaration as KSClassDeclaration)
+    }.recoverCatching {
         (this.starProjection().declaration as KSTypeAlias).findActualType()
-    }.toClassName()
+    }.getOrThrow().toClassName()
     @OptIn(KspExperimental::class)
-    inline fun <reified T : Annotation>  KSAnnotated.getAnnotationInstance() = this.getAnnotationsByType(T::class).first()
+    inline fun <reified T : Annotation> KSAnnotated.getAnnotationInstance() = this.getAnnotationsByType(T::class).first()
 
 }

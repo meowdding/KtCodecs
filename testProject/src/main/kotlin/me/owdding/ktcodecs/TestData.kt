@@ -1,7 +1,7 @@
-package me.owdding.ktmodules
+package me.owdding.ktcodecs
 
+import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
-import me.owdding.ktcodecs.*
 
 data class Complex(val namespace: String, val path: String) {
 
@@ -36,6 +36,7 @@ data class TestData(
     @Inline val complex: Complex,
     val complexMap: Map<Complex, Int>,
     val enumKeyMap: MutableMap<TestEnum, Int>,
+    val either: Either<String, Int>,
 ) {
 
     companion object {
@@ -61,7 +62,8 @@ data class Complex2(
     val test: Set<String> = emptySet()
 )
 
-class Generic1<T>(val string: String) {
+@GenerateCodec
+data class Generic1<T>(val string: String) {
     companion object {
         @IncludedCodec
         val CODEC = Codec.STRING.xmap({ Generic1<Any>(it) }, Generic1<*>::string)
