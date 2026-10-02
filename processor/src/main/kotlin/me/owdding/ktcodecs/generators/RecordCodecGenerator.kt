@@ -379,9 +379,7 @@ internal object RecordCodecGenerator {
         }
 
         val getter = (if (lazy) "getter.value" else "getter")
-        // we only need the cast if
-        //  1. the declaration has type parameters
-        //  2. the parameter itself uses type parameters
+
         if (declaration.typeParameters.isNotEmpty()) {
             resolver = declaration.typeParameters.toTypeParameterResolver()
         }
