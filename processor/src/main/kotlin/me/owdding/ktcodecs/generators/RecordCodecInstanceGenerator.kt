@@ -3,12 +3,10 @@ package me.owdding.ktcodecs.generators
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
 import me.owdding.kotlinpoet.CodeBlock
-import me.owdding.kotlinpoet.NOTHING
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toTypeParameterResolver
 import me.owdding.kotlinpoet.ksp.toTypeVariableName
-import me.owdding.ktcodecs.generators.RecordCodecGenerator.usesTypeParameter
 
 internal object RecordCodecInstanceGenerator {
 

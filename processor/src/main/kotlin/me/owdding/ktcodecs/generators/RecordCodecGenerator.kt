@@ -469,20 +469,6 @@ internal object RecordCodecGenerator {
         }
     }
 
-    internal fun KSType.usesTypeParameter(): Boolean =
-        declaration is KSTypeParameter || arguments.any { it.type?.resolve()?.usesTypeParameter() == true }
-
-    // currently won't work on things like, a type parameter having multiple bounds, a type parameter referencing itself
-    // and some complex type parameter things like that
-    internal fun boundOf(parameter: KSTypeParameter): TypeName =
-        parameter.bounds.firstOrNull()?.resolve()
-            ?.takeUnless { it.usesTypeParameter() }
-            ?.toTypeName()
-            ?: ANY.copy(nullable = true)
-
-    internal fun typeArgumentsFor(declaration: KSClassDeclaration): List<TypeName> =
-        declaration.typeParameters.map { boundOf(it) }
-
     // we need to iterate through the super types of the class' supertypes as well
     private fun KSType.getSuperTypes(): Set<KSType> = buildSet {
         if (declaration is KSTypeParameter) return@buildSet
