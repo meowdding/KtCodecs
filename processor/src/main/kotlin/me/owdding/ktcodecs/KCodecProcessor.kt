@@ -74,6 +74,7 @@ internal class KCodecProcessor(
         createBuiltin(generator, dependencies, "EnumCodec", BuiltinCodecClasses.ENUM_CODEC)
         createBuiltin(generator, dependencies, "CodecUtils", BuiltinCodecClasses.CODEC_UTILS)
         createBuiltin(generator, dependencies, "DispatchHelper", BuiltinCodecClasses.DISPATCH_HELPER)
+        createBuiltin(generator, dependencies, "OptionalMapCodec", BuiltinCodecClasses.OPTIONAL_MAP_CODEC)
         createBuiltin(generator, dependencies, "AliasMapCodec", BuiltinCodecClasses.ALIAS_CODEC)
         createBuiltin(generator, dependencies, "OptionalAliasMapCodec", BuiltinCodecClasses.OPTIONAL_ALIAS_CODEC)
 

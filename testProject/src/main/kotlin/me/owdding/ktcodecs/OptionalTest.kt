@@ -21,4 +21,13 @@ data class OptionalTest(
     @OptionalIfEmpty val mutableMap: MutableMap<String, Int> = mutableMapOf(),
     @OptionalIfEmpty val enumSet: EnumSet<TestEnum> = EnumSet.noneOf(TestEnum::class.java),
     @OptionalIfEmpty val enumMap: EnumMap<TestEnum, String> = EnumMap(TestEnum::class.java),
+
+    @Inline @OptionalNullable val inlinedClass: OptionalNestedInlineThing?,
 )
+
+@GenerateCodec
+data class OptionalNestedInlineThing(
+    val meow: String,
+    val awruff: Int,
+) {
+}

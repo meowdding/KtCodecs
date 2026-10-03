@@ -138,7 +138,7 @@ internal object RecordCodecGenerator {
 
     private fun CodeLineBuilder.addCodec(
         type: KSType,
-        isUnnamed: Boolean = false,
+        isInlined: Boolean = false,
         isCompact: Boolean = false,
     ) {
         val isCompact = isCompact || type.annotations.any {
@@ -147,14 +147,14 @@ internal object RecordCodecGenerator {
         val typeDeclaration = type.declaration
 
         if (typeDeclaration is KSTypeParameter) {
-            if (isUnnamed) {
+            if (isInlined) {
                 add("(getMapCodec(${typeDeclaration.uniqueName()}) as %T<%T>)", MAP_CODEC_TYPE, typeDeclaration.toTypeVariableName(resolver))
             } else {
                 add("(getCodec(${typeDeclaration.uniqueName()}) as %T<%T>)", CODEC_TYPE, typeDeclaration.toTypeVariableName(resolver))
             }
             return
         }
-        if (isUnnamed) {
+        if (isInlined) {
             if (type.usesTypeParameter()) {
                 addGenericClassCodec(type, isMapCodec = true)
             } else {
@@ -359,7 +359,7 @@ internal object RecordCodecGenerator {
                 }
 
                 else -> {
-                    if (isCompact && isInlined) error("Compact and Unnamed cannot be used together")
+                    if (isCompact && isInlined) error("Compact and Inlined cannot be used together")
                     builder.addCodec(ksType, isInlined, isCompact)
                 }
             }
@@ -419,7 +419,11 @@ internal object RecordCodecGenerator {
 
         val builder = CodeLineBuilder()
 
-        if (fieldNames.isEmpty()) {
+        if (isInlined && nullable) {
+            builder.add("OptionalMapCodec(")
+            addCodec(isCompact, namedCodec, builder, parameter, true, ksType)
+            builder.add(")")
+        } else if (fieldNames.isEmpty()) {
             addCodec(isCompact, namedCodec, builder, parameter, isInlined, ksType)
         }
 
