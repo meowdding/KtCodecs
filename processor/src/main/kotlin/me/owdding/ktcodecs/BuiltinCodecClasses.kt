@@ -248,4 +248,46 @@ internal object BuiltinCodecClasses {
         }
 
     """.trimIndent()
+
+    @Language("kotlin")
+    val OPTIONAL_MAP_CODEC = """
+        package $PACKAGE_IDENTIFIER
+        
+        import com.mojang.serialization.DataResult
+        import com.mojang.serialization.DynamicOps
+        import com.mojang.serialization.Lifecycle
+        import com.mojang.serialization.MapCodec
+        import com.mojang.serialization.MapLike
+        import com.mojang.serialization.RecordBuilder
+        import java.util.Optional
+        import java.util.stream.Stream
+        
+        data class OptionalMapCodec<Type : Any>(val parent: MapCodec<Type>) : MapCodec<Optional<Type>>() {
+            override fun <T> keys(ops: DynamicOps<T>): Stream<T> {
+                return Stream.empty()
+            }
+        
+            override fun <T> decode(
+                ops: DynamicOps<T>,
+                input: MapLike<T>,
+            ): DataResult<Optional<Type>> {
+                val decode = parent.decode(ops, input)
+                if (decode.isError) {
+                    return DataResult.success<Optional<Type>>(Optional.empty<Type>(), Lifecycle.stable())
+                }
+                return decode.map { Optional.of(it) }
+            }
+        
+            override fun <T> encode(
+                input: Optional<Type>,
+                ops: DynamicOps<T>,
+                prefix: RecordBuilder<T>,
+            ): RecordBuilder<T> {
+                if (input.isPresent) {
+                    return parent.encode(input.get(), ops, prefix)
+                }
+                return prefix
+            }
+        }
+    """.trimIndent()
 }

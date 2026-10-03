@@ -342,7 +342,11 @@ internal object RecordCodecGenerator {
 
         val builder = CodeLineBuilder()
 
-        if (fieldNames.isEmpty()) {
+        if (isInlined && nullable) {
+            builder.add("OptionalMapCodec(")
+            addCodec(isCompact, namedCodec, builder, parameter, true, ksType)
+            builder.add(")")
+        } else if (fieldNames.isEmpty()) {
             addCodec(isCompact, namedCodec, builder, parameter, isInlined, ksType)
         }
 

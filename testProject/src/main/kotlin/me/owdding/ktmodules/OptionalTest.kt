@@ -1,8 +1,11 @@
 package me.owdding.ktmodules
 
+import com.mojang.serialization.Codec
+import com.mojang.serialization.DataResult
 import me.owdding.ktcodecs.*
 import java.util.EnumMap
 import java.util.EnumSet
+import java.util.Optional
 
 @GenerateCodec
 data class OptionalTest(
@@ -22,4 +25,13 @@ data class OptionalTest(
     @OptionalIfEmpty val mutableMap: MutableMap<String, Int> = mutableMapOf(),
     @OptionalIfEmpty val enumSet: EnumSet<TestEnum> = EnumSet.noneOf(TestEnum::class.java),
     @OptionalIfEmpty val enumMap: EnumMap<TestEnum, String> = EnumMap(TestEnum::class.java),
+
+    @Inline @OptionalNullable val inlinedClass: OptionalNestedInlineThing?,
 )
+
+@GenerateCodec
+data class OptionalNestedInlineThing(
+    val meow: String,
+    val awruff: Int,
+) {
+}
