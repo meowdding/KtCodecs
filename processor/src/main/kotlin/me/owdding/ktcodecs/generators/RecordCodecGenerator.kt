@@ -23,8 +23,6 @@ import me.owdding.ktcodecs.LongRange
 import me.owdding.ktcodecs.OptionalDouble
 import me.owdding.ktcodecs.OptionalInt
 import me.owdding.ktcodecs.OptionalLong
-import me.owdding.ktcodecs.generators.RecordCodecGenerator.component1
-import me.owdding.ktcodecs.generators.RecordCodecGenerator.component2
 import me.owdding.ktcodecs.utils.*
 import me.owdding.ktcodecs.utils.AnnotationUtils.getAnnotationInstance
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
@@ -124,11 +122,11 @@ internal object RecordCodecGenerator {
         add(")")
     }
 
-    private fun CodeLineBuilder.addCodec(type: KSType, isUnnamed: Boolean = false, isCompact: Boolean = false) {
-        val isCompact = isCompact || type.annotations.filter {
+    private fun CodeLineBuilder.addCodec(type: KSType, isInlined: Boolean = false, isCompact: Boolean = false) {
+        val isCompact = isCompact || type.annotations.any {
             it.annotationType.resolve().toClassName() == Compact::class.java.asClassName()
-        }.any()
-        if (isUnnamed) {
+        }
+        if (isInlined) {
             add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
             return
         }
@@ -288,7 +286,7 @@ internal object RecordCodecGenerator {
                 }
 
                 else -> {
-                    if (isCompact && isInlined) error("Compact and Unnamed cannot be used together")
+                    if (isCompact && isInlined) error("Compact and Inlined cannot be used together")
                     builder.addCodec(ksType, isInlined, isCompact)
                 }
             }

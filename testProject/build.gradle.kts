@@ -7,15 +7,15 @@ plugins {
 }
 
 repositories {
-    maven(url = "https://maven.teamresourceful.com/repository/maven-public/")
-    mavenCentral()
+    maven("https://maven.teamresourceful.com/repository/maven-public/")
     maven("https://libraries.minecraft.net")
+    mavenCentral()
 }
 
 dependencies {
     compileOnly(ksp(project(":processor"))!!)
 
-    implementation("com.mojang:datafixerupper:8.0.16")
+    implementation("com.mojang:datafixerupper:10.0.21")
 
     implementation("org.jetbrains:annotations:26.0.2")
 }
