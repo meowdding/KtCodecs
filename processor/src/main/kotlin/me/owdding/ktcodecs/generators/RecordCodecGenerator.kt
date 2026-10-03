@@ -6,7 +6,6 @@ import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPublic
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
-import me.owdding.kotlinpoet.ANY
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.CodeBlock
 import me.owdding.kotlinpoet.FunSpec
@@ -14,9 +13,9 @@ import me.owdding.kotlinpoet.KModifier
 import me.owdding.kotlinpoet.ParameterSpec
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.PropertySpec
-import me.owdding.kotlinpoet.TypeName
 import me.owdding.kotlinpoet.TypeVariableName
 import me.owdding.kotlinpoet.asClassName
+import me.owdding.kotlinpoet.joinToCode
 import me.owdding.kotlinpoet.ksp.TypeParameterResolver
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toClassNameOrNull
@@ -107,7 +106,7 @@ internal object RecordCodecGenerator {
             )
         } else if (declaration.typeParameters.isNotEmpty() && declaration.getField<GenerateCodec, Boolean>("createCodecMethod") == true) {
             logger.error("@GenerateCodec(createCodecMethod = true) is not supported on generic classes")
-        } else if (declaration.typeParameters.isNotEmpty() && declaration.getField<NamedCodec, String>("name") != null) {
+        } else if (declaration.typeParameters.isNotEmpty() && declaration.hasAnnotation<NamedCodec>()) {
             logger.error("@NamedCodec is not supported on generic classes")
         } else if (!declaration.primaryConstructor!!.parameters.all {
                 isValid(
@@ -147,7 +146,6 @@ internal object RecordCodecGenerator {
         }
         val typeDeclaration = type.declaration
 
-
         if (typeDeclaration is KSTypeParameter) {
             if (isUnnamed) {
                 add("(getMapCodec(${typeDeclaration.uniqueName()}) as %T<%T>)", MAP_CODEC_TYPE, typeDeclaration.toTypeVariableName(resolver))
@@ -157,7 +155,11 @@ internal object RecordCodecGenerator {
             return
         }
         if (isUnnamed) {
-            add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
+            if (type.usesTypeParameter()) {
+                addGenericClassCodec(type, isMapCodec = true)
+            } else {
+                add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
+            }
             return
         }
 
@@ -234,7 +236,48 @@ internal object RecordCodecGenerator {
             }
 
             else -> {
-                add("getCodec<%T>()", type.toTypeName().copy(nullable = false))
+                if (type.usesTypeParameter()) {
+                    addGenericClassCodec(type, isMapCodec = false)
+                } else {
+                    add("getCodec<%T>()", type.toTypeName().copy(nullable = false))
+                }
+            }
+        }
+    }
+
+    private fun KSType.usesTypeParameter(): Boolean =
+        declaration is KSTypeParameter || arguments.any { it.type?.resolve()?.usesTypeParameter() == true }
+
+
+    // for arguments that need type parameters
+    private fun CodeLineBuilder.addGenericClassCodec(type: KSType, isMapCodec: Boolean) {
+        val target = type.declaration as KSClassDeclaration
+        val arguments = type.arguments.map { it.type!!.resolve() }
+
+        val typeArguments = arguments.map { CodeBlock.of("%T", it.toTypeName(resolver)) }.joinToCode()
+        val kTypes = arguments.map { kTypeExpression(it) }.joinToCode()
+
+        add("${target.simpleName.asString()}Codec<%L>(%L)${if (isMapCodec) "" else ".codec()"}", typeArguments, kTypes)
+    }
+
+    private fun kTypeExpression(type: KSType): CodeBlock {
+        val declaration = type.declaration
+        return when {
+            // if it's a type parameter, it means that we already have it as a variable
+            declaration is KSTypeParameter -> CodeBlock.of(declaration.uniqueName())
+
+            // if it's not a type parameter, and isn't using any, we just create the ktype
+            !type.usesTypeParameter() -> CodeBlock.of("typeOf<%T>()", type.toTypeName(resolver))
+
+            // it uses a type parameter, but its *inside*, therefore we need to create the ktype
+            else -> {
+                val className = (declaration as KSClassDeclaration).toClassName()
+                val arguments = type.arguments.map { it.type!!.resolve() }
+                val projections = arguments.map { arg ->
+                    CodeBlock.of("%T.invariant(%L)", KTYPE_PROJECTION, kTypeExpression(arg))
+                }.joinToCode()
+                val function = if (type.isMarkedNullable) "nullableTypeOf" else "typeOf"
+                CodeBlock.of("%T.%L(%T::class.java, %L)", KOTLIN_REFLECTION, function, className, projections)
             }
         }
     }
@@ -349,7 +392,7 @@ internal object RecordCodecGenerator {
         return optionalAnnotations.firstNotNullOfOrNull { getField(it, "default") }
     }
 
-    lateinit var resolver: TypeParameterResolver
+    var resolver: TypeParameterResolver = TypeParameterResolver.EMPTY
 
     @OptIn(KspExperimental::class)
     private fun CodeBlock.Builder.createEntry(
@@ -372,6 +415,8 @@ internal object RecordCodecGenerator {
         val nullable = parameter.type.resolve().isMarkedNullable
         val ksType = parameter.type.resolve()
 
+        resolver = declaration.typeParameters.toTypeParameterResolver()
+
         val builder = CodeLineBuilder()
 
         if (fieldNames.isEmpty()) {
@@ -379,10 +424,6 @@ internal object RecordCodecGenerator {
         }
 
         val getter = (if (lazy) "getter.value" else "getter")
-
-        if (declaration.typeParameters.isNotEmpty()) {
-            resolver = declaration.typeParameters.toTypeParameterResolver()
-        }
 
         val customGetterMethodName = parameter.name!!.asString().replaceFirstChar { it.uppercaseChar() }
 

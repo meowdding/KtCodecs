@@ -153,7 +153,7 @@ internal object BuiltinCodecClasses {
                 { com.mojang.serialization.Dynamic(com.mojang.serialization.JsonOps.INSTANCE, it) }
             )
 
-            private inline fun <reified T> codec(): Codec<T> = TestProjectCodecs.getCodec<T>()
+            private inline fun <reified T> codec(): Codec<T> = $CODECS_IDENTIFIER.getCodec<T>()
 
             inline fun <reified T> set(): Codec<Set<T>> = set(codec<T>())
             inline fun <reified T> compactSet(): Codec<Set<T>> = compactSet(codec<T>())

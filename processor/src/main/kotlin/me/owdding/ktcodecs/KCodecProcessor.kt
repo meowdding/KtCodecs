@@ -80,13 +80,22 @@ internal class KCodecProcessor(
         val annotatedDispatch = resolver.getSymbolsWithAnnotation(GenerateDispatchCodec::class.qualifiedName!!).toList()
         val dispatchCodecs = DispatchCodecGenerator.create(annotatedDispatch, logger, builtinCodecs)
 
+        /*
+        @file:Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "FunctionName", "LocalVariableName",
+        "RemoveRedundantQualifierName", "RemoveExplicitTypeArguments", "RedundantVisibilityModifier", "unused",
+        "RedundantCompanionReference"
+        )
+         */
+        val warnings = listOf("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "FunctionName", "LocalVariableName",
+            "RemoveRedundantQualifierName", "RemoveExplicitTypeArguments", "RedundantVisibilityModifier", "unused",
+            "RedundantCompanionReference")
+
         val file = FileSpec.builder(context.generatedPackage, "${context.projectName}Codecs")
             .indent("    ")
             .addImport("kotlin.reflect", "typeOf")
-            // @file:Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
             .addAnnotation(
                 AnnotationSpec.builder(Suppress::class).apply {
-                    this.addMember("\"UNCHECKED_CAST\", \"PLATFORM_CLASS_MAPPED_TO_KOTLIN\"")
+                    this.addMember(warnings.joinToString { "\"$it\"" })
                 }.build(),
             )
             .addType(
@@ -105,7 +114,7 @@ internal class KCodecProcessor(
 
                     this.addFunction(
                         FunSpec.builder("getClass").apply {
-                            this.addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+                            this.addModifiers(KModifier.PRIVATE)
                             this.receiver(KTYPE)
                             this.returns(JAVA_CLASS.parameterizedBy(STAR))
                             this.addCode("return (this.classifier as kotlin.reflect.KClass<*>).java")

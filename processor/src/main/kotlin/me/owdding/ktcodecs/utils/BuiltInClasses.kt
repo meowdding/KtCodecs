@@ -9,6 +9,8 @@ private const val SERIALIZATION = "com.mojang.serialization"
 private const val DATAFIXER = "com.mojang.datafixers"
 private const val COLLECTIONS = "kotlin.collections"
 
+internal val KTYPE_PROJECTION = ClassName("kotlin.reflect", "KTypeProjection")
+internal val KOTLIN_REFLECTION = ClassName("kotlin.jvm.internal", "Reflection")
 internal val JAVA_CLASS = ClassName("java.lang", "Class")
 internal val KTYPE = KType::class.asClassName()
 
