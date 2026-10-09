@@ -1,7 +1,6 @@
-package me.owdding.ktmodules
+package me.owdding.ktcodecs
 
 import com.mojang.serialization.Codec
-import me.owdding.ktcodecs.IncludedCodec
 
 object SbpvTest {
 

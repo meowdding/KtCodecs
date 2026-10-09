@@ -8,13 +8,20 @@ import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.*
 import me.owdding.kotlinpoet.ClassName
 import me.owdding.kotlinpoet.CodeBlock
+import me.owdding.kotlinpoet.FunSpec
 import me.owdding.kotlinpoet.KModifier
+import me.owdding.kotlinpoet.ParameterSpec
 import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.PropertySpec
+import me.owdding.kotlinpoet.TypeVariableName
 import me.owdding.kotlinpoet.asClassName
+import me.owdding.kotlinpoet.joinToCode
+import me.owdding.kotlinpoet.ksp.TypeParameterResolver
 import me.owdding.kotlinpoet.ksp.toClassName
 import me.owdding.kotlinpoet.ksp.toClassNameOrNull
 import me.owdding.kotlinpoet.ksp.toTypeName
+import me.owdding.kotlinpoet.ksp.toTypeParameterResolver
+import me.owdding.kotlinpoet.ksp.toTypeVariableName
 import me.owdding.kotlinpoet.numberLiteral
 import me.owdding.kotlinpoet.stringLiteralWithQuotes
 import me.owdding.ktcodecs.*
@@ -64,17 +71,20 @@ internal object RecordCodecGenerator {
             val isMap = ksType.extendsOneOf(MAP)
             if (isMap && !parameter.hasAnnotation<NamedCodec>()) {
                 val keyType = ksType.arguments.getRef(0).resolve()
-                val type = keyType.toTypeName().copy(false)
-                if (Modifier.ENUM !in keyType.declaration.modifiers && !builtinCodecs.isStringType(type)) {
-                    logger.error("parameter $name is a map with a key type that is not a string: $type")
-                    return@runCatching false
+                // idk how exactly to check if the type parameter can be a key type meow?
+                if (keyType.declaration !is KSTypeParameter) {
+                    val type = keyType.toTypeName().copy(false)
+                    if (Modifier.ENUM !in keyType.declaration.modifiers && !builtinCodecs.isStringType(type)) {
+                        logger.error("parameter $name is a map with a key type that is not a string: $type")
+                        return@runCatching false
+                    }
                 }
             }
             return@runCatching true
         }
         return@runCatching false
     }.onFailure {
-        logger.error("Failed to validate record codec parameter ${parameter.name} for ${declaration.location}")
+        logger.error("Failed to validate record codec parameter ${parameter.name?.asString()} for ${declaration.location}")
     }.getOrThrow()
 
     fun isValid(declaration: KSAnnotated?, logger: KSPLogger, builtinCodecs: BuiltinCodecs): Boolean {
@@ -94,6 +104,10 @@ internal object RecordCodecGenerator {
             logger.error(
                 "@GenerateCodec can only be applied to classes with a primary constructor that has at most $MAX_PARAMETERS parameters",
             )
+        } else if (declaration.typeParameters.isNotEmpty() && declaration.getField<GenerateCodec, Boolean>("createCodecMethod") == true) {
+            logger.error("@GenerateCodec(createCodecMethod = true) is not supported on generic classes")
+        } else if (declaration.typeParameters.isNotEmpty() && declaration.hasAnnotation<NamedCodec>()) {
+            logger.error("@NamedCodec is not supported on generic classes")
         } else if (!declaration.primaryConstructor!!.parameters.all {
                 isValid(
                     it,
@@ -122,12 +136,30 @@ internal object RecordCodecGenerator {
         add(")")
     }
 
-    private fun CodeLineBuilder.addCodec(type: KSType, isInlined: Boolean = false, isCompact: Boolean = false) {
+    private fun CodeLineBuilder.addCodec(
+        type: KSType,
+        isInlined: Boolean = false,
+        isCompact: Boolean = false,
+    ) {
         val isCompact = isCompact || type.annotations.any {
             it.annotationType.resolve().toClassName() == Compact::class.java.asClassName()
         }
+        val typeDeclaration = type.declaration
+
+        if (typeDeclaration is KSTypeParameter) {
+            if (isInlined) {
+                add("(getMapCodec(${typeDeclaration.uniqueName()}) as %T<%T>)", MAP_CODEC_TYPE, typeDeclaration.toTypeVariableName(resolver))
+            } else {
+                add("(getCodec(${typeDeclaration.uniqueName()}) as %T<%T>)", CODEC_TYPE, typeDeclaration.toTypeVariableName(resolver))
+            }
+            return
+        }
         if (isInlined) {
-            add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
+            if (type.usesTypeParameter()) {
+                addGenericClassCodec(type, isMapCodec = true)
+            } else {
+                add("getMapCodec<%T>()", type.toTypeName().copy(nullable = false))
+            }
             return
         }
 
@@ -204,7 +236,48 @@ internal object RecordCodecGenerator {
             }
 
             else -> {
-                add("getCodec<%T>()", type.toTypeName().copy(nullable = false))
+                if (type.usesTypeParameter()) {
+                    addGenericClassCodec(type, isMapCodec = false)
+                } else {
+                    add("getCodec<%T>()", type.toTypeName().copy(nullable = false))
+                }
+            }
+        }
+    }
+
+    private fun KSType.usesTypeParameter(): Boolean =
+        declaration is KSTypeParameter || arguments.any { it.type?.resolve()?.usesTypeParameter() == true }
+
+
+    // for arguments that need type parameters
+    private fun CodeLineBuilder.addGenericClassCodec(type: KSType, isMapCodec: Boolean) {
+        val target = type.declaration as KSClassDeclaration
+        val arguments = type.arguments.map { it.type!!.resolve() }
+
+        val typeArguments = arguments.map { CodeBlock.of("%T", it.toTypeName(resolver)) }.joinToCode()
+        val kTypes = arguments.map { kTypeExpression(it) }.joinToCode()
+
+        add("${target.simpleName.asString()}Codec<%L>(%L)${if (isMapCodec) "" else ".codec()"}", typeArguments, kTypes)
+    }
+
+    private fun kTypeExpression(type: KSType): CodeBlock {
+        val declaration = type.declaration
+        return when {
+            // if it's a type parameter, it means that we already have it as a variable
+            declaration is KSTypeParameter -> CodeBlock.of(declaration.uniqueName())
+
+            // if it's not a type parameter, and isn't using any, we just create the ktype
+            !type.usesTypeParameter() -> CodeBlock.of("typeOf<%T>()", type.toTypeName(resolver))
+
+            // it uses a type parameter, but its *inside*, therefore we need to create the ktype
+            else -> {
+                val className = (declaration as KSClassDeclaration).toClassName()
+                val arguments = type.arguments.map { it.type!!.resolve() }
+                val projections = arguments.map { arg ->
+                    CodeBlock.of("%T.invariant(%L)", KTYPE_PROJECTION, kTypeExpression(arg))
+                }.joinToCode()
+                val function = if (type.isMarkedNullable) "nullableTypeOf" else "typeOf"
+                CodeBlock.of("%T.%L(%T::class.java, %L)", KOTLIN_REFLECTION, function, className, projections)
             }
         }
     }
@@ -319,6 +392,8 @@ internal object RecordCodecGenerator {
         return optionalAnnotations.firstNotNullOfOrNull { getField(it, "default") }
     }
 
+    var resolver: TypeParameterResolver = TypeParameterResolver.EMPTY
+
     @OptIn(KspExperimental::class)
     private fun CodeBlock.Builder.createEntry(
         parameter: KSValueParameter,
@@ -340,6 +415,8 @@ internal object RecordCodecGenerator {
         val nullable = parameter.type.resolve().isMarkedNullable
         val ksType = parameter.type.resolve()
 
+        resolver = declaration.typeParameters.toTypeParameterResolver()
+
         val builder = CodeLineBuilder()
 
         if (isInlined && nullable) {
@@ -350,11 +427,7 @@ internal object RecordCodecGenerator {
             addCodec(isCompact, namedCodec, builder, parameter, isInlined, ksType)
         }
 
-        val getter = if (lazy) {
-            "getter.value"
-        } else {
-            "getter"
-        }
+        val getter = (if (lazy) "getter.value" else "getter")
 
         val customGetterMethodName = parameter.name!!.asString().replaceFirstChar { it.uppercaseChar() }
 
@@ -443,6 +516,7 @@ internal object RecordCodecGenerator {
 
     // we need to iterate through the super types of the class' supertypes as well
     private fun KSType.getSuperTypes(): Set<KSType> = buildSet {
+        if (declaration is KSTypeParameter) return@buildSet
         add(this@getSuperTypes)
 
         val declaration = declaration as? KSClassDeclaration ?: return@buildSet
@@ -455,6 +529,8 @@ internal object RecordCodecGenerator {
     internal fun KSType.extendsOneOf(vararg classNames: ClassName): Boolean {
         return getSuperTypes().any { it.resolveClassName() in classNames }
     }
+
+    internal fun KSTypeParameter.uniqueName(): String = "type_${name.asString()}"
 
     fun extractNames(
         declaration: KSClassDeclaration,
@@ -469,8 +545,96 @@ internal object RecordCodecGenerator {
         }
     }
 
+    internal fun KSClassDeclaration.typeVariables(): List<TypeVariableName> {
+        val typeParameters: List<KSTypeParameter> = typeParameters
+
+        val resolver = typeParameters.toTypeParameterResolver()
+        return typeParameters.map { it.toTypeVariableName(resolver) }
+    }
+
     internal operator fun Range.component1(): Long = this.from
     internal operator fun Range.component2(): Long = this.to
+
+    // TODO: merge some logic between this and generateCodec, as like half of it is exactly the same
+    fun generateGenericCodec(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): FunSpec =
+        runCatching {
+            if (declaration !is KSClassDeclaration) {
+                throw IllegalArgumentException("Declaration is not a class")
+            }
+            val string = declaration.getField<NamedCodec, String>("name")
+
+            val codecName = (if (lazy) "Lazy" else "") + (string ?: declaration.simpleName.asString()) + "Codec"
+
+            val currentTypeParameters = declaration.typeParameters
+            val classType = declaration.toClassName().parameterizedBy(declaration.typeVariables())
+            val codecType = MAP_CODEC_TYPE.parameterizedBy(if (lazy) LAZY.parameterizedBy(classType) else classType)
+
+            if (string != null) {
+                builtinCodec.addGeneratedNamedCodec(string, codecName)
+            }
+
+            return@runCatching FunSpec.builder(codecName).apply {
+                val typeParameters = List(currentTypeParameters.size) { index ->
+                    val typeParameter = currentTypeParameters[index]
+                    ParameterSpec.builder(typeParameter.uniqueName(), KTYPE).build()
+                }
+                this.addParameters(typeParameters)
+                this.returns(codecType)
+                this.addTypeVariables(declaration.typeVariables())
+                this.addModifiers(KModifier.PUBLIC)
+                this.addCode(CodeBlock.builder().apply {
+                    add("return ")
+                    add("CodecUtils.lazyMapCodec {\n")
+                    indent()
+                    add("%T.mapCodec {\n", RECORD_CODEC_BUILDER_TYPE)
+                    indent()
+                    add("it.group(\n")
+
+                    indent()
+                    for (parameter in declaration.primaryConstructor!!.parameters) {
+                        try {
+                            createEntry(parameter, declaration, lazy)
+                        } catch (t: Throwable) {
+                            logger.error("Failed to create codec for ${declaration.location}")
+                            throw t
+                        }
+                    }
+
+                    val args = extractNames(declaration)
+                    unindent()
+
+                    if (annotation.createCodecMethod) {
+                        add(").apply(it, ::create$codecName)")
+
+                    } else {
+
+                        add(").apply(it) { ${args.joinToString(", ") { "p_${it.first}" }} -> \n")
+
+                        indent()
+                        if (lazy) {
+                            add("lazy {")
+                        }
+                        RecordCodecInstanceGenerator.generateCodecInstance(
+                            this,
+                            args,
+                            declaration
+                        )
+                        if (lazy) {
+                            add("}")
+                        }
+                        unindent()
+
+                        add("}\n")
+                    }
+                    unindent()
+                    add("}\n")
+                    unindent()
+                    add("}\n")
+                }.build())
+            }.build()
+        }.onFailure {
+            logger.error("Failed to generate ${"lazy".takeIf { lazy } ?: ""}record codec for ${declaration.location}")
+        }.getOrThrow()
 
     fun generateCodec(annotation: GenerateCodecData, declaration: KSAnnotated, lazy: Boolean): PropertySpec =
         runCatching {
@@ -480,15 +644,15 @@ internal object RecordCodecGenerator {
             val string = declaration.getField<NamedCodec, String>("name")
 
             val codecName = (if (lazy) "Lazy" else "") + (string ?: declaration.simpleName.asString()) + "Codec"
-            val type = MAP_CODEC_TYPE.parameterizedBy(
-                if (lazy) LAZY.parameterizedBy(declaration.toClassName()) else declaration.toClassName()
-            )
+
+            val classType = declaration.toClassName()
+            val codecType = MAP_CODEC_TYPE.parameterizedBy(if (lazy) LAZY.parameterizedBy(classType) else classType)
 
             if (string != null) {
                 builtinCodec.addGeneratedNamedCodec(string, codecName)
             }
 
-            return@runCatching PropertySpec.builder(codecName, type)
+            return@runCatching PropertySpec.builder(codecName, codecType)
                 .addModifiers(KModifier.PUBLIC)
                 .initializer(
                     CodeBlock.builder().apply {
@@ -524,7 +688,7 @@ internal object RecordCodecGenerator {
                             }
                             RecordCodecInstanceGenerator.generateCodecInstance(
                                 this,
-                                args.map { (p, type) -> p.name!!.asString() to type },
+                                args,
                                 declaration
                             )
                             if (lazy) {

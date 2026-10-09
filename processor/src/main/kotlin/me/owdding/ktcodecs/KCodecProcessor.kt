@@ -14,6 +14,8 @@ import me.owdding.ktcodecs.generators.RecordCodecGenerator
 import me.owdding.ktcodecs.utils.AnnotationUtils.getField
 import me.owdding.ktcodecs.utils.CODEC_TYPE
 import me.owdding.ktcodecs.utils.GenerateCodecData
+import me.owdding.ktcodecs.utils.JAVA_CLASS
+import me.owdding.ktcodecs.utils.KTYPE
 import me.owdding.ktcodecs.utils.LAZY
 import me.owdding.ktcodecs.utils.MAP_CODEC_TYPE
 import java.io.OutputStreamWriter
@@ -43,18 +45,26 @@ internal class KCodecProcessor(
             val lazy = it.getField<GenerateCodec, Boolean>("generateLazy")!!
             val default = it.getField<GenerateCodec, Boolean>("generateDefault")!!
             val method = it.getField<GenerateCodec, Boolean>("createCodecMethod")!!
+            val generic = it is KSClassDeclaration && it.typeParameters.isNotEmpty()
 
             GenerateCodecData(
                 lazy,
                 default,
                 method,
+                generic,
             )
         }
 
-        val generatedLazyCodecs = instances.filter { (_, key) -> key.generateLazy }
+        val generatedLazyCodecs = instances.filter { (_, key) -> key.generateLazy && !key.isGeneric }
             .map { (value, key) -> RecordCodecGenerator.generateCodec(key, value, true) }
-        val generatedCodecs = instances.filter { (_, key) -> key.generateDefault }
+        val generatedCodecs = instances.filter { (_, key) -> key.generateDefault && !key.isGeneric }
             .map { (value, key) -> RecordCodecGenerator.generateCodec(key, value, false) }
+
+        val generatedLazyGenericCodecs = instances.filter { (_, key) -> key.generateLazy && key.isGeneric }
+            .map { (value, key) -> RecordCodecGenerator.generateGenericCodec(key, value, true) }
+        val generatedGenericCodecs = instances.filter { (_, key) -> key.generateDefault && key.isGeneric }
+            .map { (value, key) -> RecordCodecGenerator.generateGenericCodec(key, value, false) }
+
         val lazyCodecCreators = instances.filter { (_, key) -> key.generateLazy && key.createCodecMethod }
             .map { (value, key) -> CreatorMethodGenerator.createMethod(key, value, true) }
         val codecCreators = instances.filter { (_, key) -> key.createCodecMethod && key.generateDefault }
@@ -71,12 +81,22 @@ internal class KCodecProcessor(
         val annotatedDispatch = resolver.getSymbolsWithAnnotation(GenerateDispatchCodec::class.qualifiedName!!).toList()
         val dispatchCodecs = DispatchCodecGenerator.create(annotatedDispatch, logger, builtinCodecs)
 
+        /*
+        @file:Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "FunctionName", "LocalVariableName",
+        "RemoveRedundantQualifierName", "RemoveExplicitTypeArguments", "RedundantVisibilityModifier", "unused",
+        "RedundantCompanionReference"
+        )
+         */
+        val warnings = listOf("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "FunctionName", "LocalVariableName",
+            "RemoveRedundantQualifierName", "RemoveExplicitTypeArguments", "RedundantVisibilityModifier", "unused",
+            "RedundantCompanionReference")
+
         val file = FileSpec.builder(context.generatedPackage, "${context.projectName}Codecs")
             .indent("    ")
-            // @file:Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+            .addImport("kotlin.reflect", "typeOf")
             .addAnnotation(
                 AnnotationSpec.builder(Suppress::class).apply {
-                    this.addMember("\"UNCHECKED_CAST\", \"PLATFORM_CLASS_MAPPED_TO_KOTLIN\"")
+                    this.addMember(warnings.joinToString { "\"$it\"" })
                 }.build(),
             )
             .addType(
@@ -87,15 +107,37 @@ internal class KCodecProcessor(
                     this.addProperties(generatedLazyCodecs)
                     this.addProperties(dispatchCodecs)
 
+                    this.addFunctions(generatedLazyGenericCodecs)
+                    this.addFunctions(generatedGenericCodecs)
+
                     this.addFunctions(lazyCodecCreators)
                     this.addFunctions(codecCreators)
+
+                    this.addFunction(
+                        FunSpec.builder("getClass").apply {
+                            this.addModifiers(KModifier.PRIVATE)
+                            this.receiver(KTYPE)
+                            this.returns(JAVA_CLASS.parameterizedBy(STAR))
+                            this.addCode("return (this.classifier as kotlin.reflect.KClass<*>).java")
+                        }.build()
+                    )
+
+                    this.addFunction(
+                        FunSpec.builder("get").apply {
+                            this.addModifiers(KModifier.PRIVATE, KModifier.OPERATOR)
+                            this.receiver(KTYPE)
+                            this.returns(KTYPE)
+                            this.addParameter("index", INT)
+                            this.addCode("return arguments[index].type ?: typeOf<Any?>()")
+                        }.build()
+                    )
 
                     this.addFunction(
                         FunSpec.builder("getLazyCodec").apply {
                             this.addModifiers(KModifier.INLINE)
                             this.addTypeVariable(TypeVariableName("T").copy(reified = true))
                             this.returns(CODEC_TYPE.parameterizedBy(LAZY.parameterizedBy(TypeVariableName("T"))))
-                            this.addCode("return getLazyCodec(T::class.java) as Codec<Lazy<T>>")
+                            this.addCode("return getLazyCodec(typeOf<T>()) as Codec<Lazy<T>>")
                         }.build(),
                     )
 
@@ -104,7 +146,7 @@ internal class KCodecProcessor(
                             this.addModifiers(KModifier.INLINE)
                             this.addTypeVariable(TypeVariableName("T").copy(reified = true))
                             this.returns(MAP_CODEC_TYPE.parameterizedBy(LAZY.parameterizedBy(TypeVariableName("T"))))
-                            this.addCode("return getLazyMapCodec(T::class.java) as MapCodec<Lazy<T>>")
+                            this.addCode("return getLazyMapCodec(typeOf<T>()) as MapCodec<Lazy<T>>")
                         }.build(),
                     )
 
@@ -113,7 +155,7 @@ internal class KCodecProcessor(
                             this.addModifiers(KModifier.INLINE)
                             this.addTypeVariable(TypeVariableName("T").copy(reified = true))
                             this.returns(CODEC_TYPE.parameterizedBy(TypeVariableName("T")))
-                            this.addCode("return getCodec(T::class.java) as Codec<T>")
+                            this.addCode("return getCodec(typeOf<T>()) as Codec<T>")
                         }.build(),
                     )
 
@@ -122,49 +164,41 @@ internal class KCodecProcessor(
                             this.addModifiers(KModifier.INLINE)
                             this.addTypeVariable(TypeVariableName("T").copy(reified = true))
                             this.returns(MAP_CODEC_TYPE.parameterizedBy(TypeVariableName("T")))
-                            this.addCode("return getMapCodec(T::class.java) as MapCodec<T>")
+                            this.addCode("return getMapCodec(typeOf<T>()) as MapCodec<T>")
                         }.build(),
                     )
 
                     this.addFunction(
                         FunSpec.builder("getLazyMapCodec").apply {
-                            this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
+                            this.addParameter("type", KTYPE)
                             this.returns(
                                 MAP_CODEC_TYPE.parameterizedBy(
-                                    WildcardTypeName.producerOf(
-                                        LAZY.parameterizedBy(
-                                            STAR
-                                        )
-                                    )
+                                    WildcardTypeName.producerOf(LAZY.parameterizedBy(STAR))
                                 )
                             )
-                            this.addCode("return when {\n")
+                            this.addCode("return when (type.getClass()) {\n")
                             for (codec in validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateLazy")!! }) {
                                 val string = codec.getField<NamedCodec, String>("name")
 
                                 val codecName =
                                     (string ?: (codec as KSClassDeclaration).simpleName.asString()) + "Codec"
                                 this.addCode(
-                                    "    clazz == %T::class.java -> Lazy%L\n",
+                                    "    %T::class.java -> Lazy%L\n",
                                     (codec as KSClassDeclaration).toClassName(),
-                                    codecName,
+                                    codecName + addArgumentTypesIfNeeded(codec),
                                 )
                             }
-                            this.addCode("    else -> CodecUtils.toLazy(getMapCodec(clazz))\n")
+                            this.addCode("    else -> CodecUtils.toLazy(getMapCodec(type))\n")
                             this.addCode("}\n")
                         }.build()
                     )
 
                     this.addFunction(
                         FunSpec.builder("getLazyCodec").apply {
-                            this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
+                            this.addParameter("type", KTYPE)
                             this.returns(
                                 CODEC_TYPE.parameterizedBy(
-                                    WildcardTypeName.producerOf(
-                                        LAZY.parameterizedBy(
-                                            STAR
-                                        )
-                                    )
+                                    WildcardTypeName.producerOf(LAZY.parameterizedBy(STAR))
                                 )
                             )
                             this.addCode("return when {\n")
@@ -172,18 +206,76 @@ internal class KCodecProcessor(
                             //    this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type)
                             //}
                             //this.addCode("    clazz.isEnum -> EnumCodec.forKCodec(clazz.enumConstants)\n")
-                            this.addCode("    else -> getLazyMapCodec(clazz).codec()\n")
+                            this.addCode("    else -> getLazyMapCodec(type).codec()\n")
                             this.addCode("}\n")
+                        }.build(),
+                    )
+
+
+                    this.addFunction(
+                        FunSpec.builder("getLazyMapCodec").apply {
+                            this.addParameter("clazz", JAVA_CLASS.parameterizedBy(STAR))
+                            this.returns(
+                                MAP_CODEC_TYPE.parameterizedBy(
+                                    WildcardTypeName.producerOf(LAZY.parameterizedBy(STAR))
+                                )
+                            )
+                            this.addCode("return getLazyMapCodec(kotlin.jvm.internal.Reflection.typeOf(clazz))")
+                            this.addKdoc("Doesn't support generics")
+                        }.build()
+                    )
+
+
+                    this.addFunction(
+                        FunSpec.builder("getLazyCodec").apply {
+                            this.addParameter("clazz", JAVA_CLASS.parameterizedBy(STAR))
+                            this.returns(
+                                CODEC_TYPE.parameterizedBy(
+                                    WildcardTypeName.producerOf(LAZY.parameterizedBy(STAR))
+                                )
+                            )
+                            this.addCode("return getLazyCodec(kotlin.jvm.internal.Reflection.typeOf(clazz))")
+                            this.addKdoc("Doesn't support generics")
+                        }.build()
+                    )
+
+                    // this is here because DispatchHelper uses java.lang.Class<*>
+                    this.addFunction(
+                        FunSpec.builder("getMapCodec").apply {
+                            this.addParameter("clazz", JAVA_CLASS.parameterizedBy(STAR))
+                            this.returns(MAP_CODEC_TYPE.parameterizedBy(STAR))
+                            this.addCode("return getMapCodec(kotlin.jvm.internal.Reflection.typeOf(clazz))")
+                            this.addKdoc("Doesn't support generics")
+                        }.build(),
+                    )
+
+                    // here so this can still be used (more or less, it won't have support for generics still)
+                    this.addFunction(
+                        FunSpec.builder("getCodec").apply {
+                            this.addParameter("clazz", JAVA_CLASS.parameterizedBy(STAR))
+                            this.returns(CODEC_TYPE.parameterizedBy(STAR))
+                            this.addCode("return getCodec(kotlin.jvm.internal.Reflection.typeOf(clazz))")
+                            this.addKdoc("Doesn't support generics")
                         }.build(),
                     )
 
                     this.addFunction(
                         FunSpec.builder("getMapCodec").apply {
-                            this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
+                            this.addParameter("type", KTYPE)
                             this.returns(MAP_CODEC_TYPE.parameterizedBy(STAR))
-                            this.addCode("return when {\n")
-                            builtinCodecs.filter { (_, info) -> info.mapCodec }.forEach { (type, info) ->
-                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type.clean())
+                            this.addCode("return when (type) {\n")
+                            val mapCodecs = builtinCodecs.filterValues { it.mapCodec }
+                            mapCodecs.filterKeys { type ->
+                                type is ParameterizedTypeName
+                            }.forEach { (type, info) ->
+                                this.addCode("    typeOf<%T>() -> ${info.codec}\n", type)
+                            }
+                            this.addCode("    else -> when (type.getClass()) {\n")
+
+                            mapCodecs.filterKeys { type ->
+                                type !is ParameterizedTypeName
+                            }.forEach { (type, info) ->
+                                this.addCode("        %T::class.java -> ${info.codec}\n", type)
                             }
                             for (codec in validGeneratedCodecs.filter { it.getField<GenerateCodec, Boolean>("generateDefault")!! }) {
                                 val string = codec.getField<NamedCodec, String>("name")
@@ -192,25 +284,39 @@ internal class KCodecProcessor(
                                     (string ?: (codec as KSClassDeclaration).simpleName.asString()) + "Codec"
 
                                 this.addCode(
-                                    "    clazz == %T::class.java -> %L\n",
+                                    "        %T::class.java -> %L\n",
                                     (codec as KSClassDeclaration).toClassName(),
-                                    codecName,
+                                    codecName + addArgumentTypesIfNeeded(codec),
                                 )
                             }
-                            this.addCode("    else -> throw IllegalArgumentException(\"Unknown codec for class: \$clazz\")\n")
+                            this.addCode("        else -> throw IllegalArgumentException(\"Unknown codec for type: \$type\")\n")
+                            this.addCode("    }\n")
                             this.addCode("}\n")
                         }.build()
                     )
                     this.addFunction(
                         FunSpec.builder("getCodec").apply {
-                            this.addParameter("clazz", ClassName("java.lang", "Class").parameterizedBy(STAR))
+                            this.addParameter("type", KTYPE)
                             this.returns(CODEC_TYPE.parameterizedBy(STAR))
-                            this.addCode("return when {\n")
-                            builtinCodecs.filterNot { (_, info) -> info.mapCodec }.forEach { (type, info) ->
-                                this.addCode("    clazz == %T::class.java -> ${info.codec}\n", type.clean())
+                            this.addCode("return when (type) {\n")
+                            builtinCodecs.filterNot { (type, info) -> info.mapCodec || type !is ParameterizedTypeName }.forEach { (type, info) ->
+                                this.addCode("    typeOf<%T>() -> ${info.codec}\n", type)
                             }
-                            this.addCode("    clazz.isEnum -> EnumCodec.forKCodec(clazz.enumConstants)\n")
-                            this.addCode("    else -> getMapCodec(clazz).codec()\n")
+                            this.addCode("    else -> when (val clazz = type.getClass()) {\n")
+                            builtinCodecs.filterNot { (type, info) -> info.mapCodec || type is ParameterizedTypeName }.forEach { (type, info) ->
+                                this.addCode("        %T::class.java -> ${info.codec}\n", type)
+                            }
+                            this.addCode("        MutableList::class.java -> CodecUtils.mutableList(getCodec(type[0]))\n")
+                            this.addCode("        MutableSet::class.java -> CodecUtils.mutableSet(getCodec(type[0]))\n")
+                            this.addCode("        MutableMap::class.java -> CodecUtils.map(getCodec(type[0]), getCodec(type[1]))\n")
+                            this.addCode("        java.util.EnumSet::class.java -> CodecUtils.enumSet(type[0].getClass() as Class<Nothing>, getCodec(type[0]) as Codec<Nothing>)\n")
+                            this.addCode("        java.util.EnumMap::class.java -> CodecUtils.enumMap(type[0].getClass() as Class<Nothing>, getCodec(type[0]) as Codec<Nothing>, getCodec(type[1]))\n")
+                            this.addCode("        com.mojang.datafixers.util.Either::class.java -> Codec.either(getCodec(type[0]), getCodec(type[1]))\n")
+                            this.addCode("        else -> {\n")
+                            this.addCode("            if (clazz.isEnum) EnumCodec.forKCodec(clazz.enumConstants)\n")
+                            this.addCode("            else getMapCodec(type).codec()\n")
+                            this.addCode("        }\n")
+                            this.addCode("    }\n")
                             this.addCode("}\n")
                         }.build(),
                     )
@@ -232,11 +338,24 @@ internal class KCodecProcessor(
         }
     }
 
-    fun TypeName.clean() = when (this) {
-        is ParameterizedTypeName -> this.rawType
-        else -> this
+    private fun addArgumentTypesIfNeeded(codec: KSAnnotated): String {
+        val typeParameters = (codec as KSClassDeclaration).typeParameters
+        return if (typeParameters.isEmpty()) ""
+        else buildString {
+            append("<")
+            repeat(typeParameters.size) {
+                if (it > 0) append(", ")
+                append("Nothing")
+            }
+            append(">")
+            append("(")
+            repeat(typeParameters.size) {
+                if (it > 0) append(", ")
+                append("type[$it]")
+            }
+            append(")")
+        }
     }
-
 }
 
 internal class KCodecProvider : SymbolProcessorProvider {

@@ -137,93 +137,117 @@ internal object BuiltinCodecClasses {
         @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST")
         package $PACKAGE_IDENTIFIER
         
+        import com.mojang.serialization.Codec
+        import java.util.EnumMap
+        import java.util.EnumSet
+
         internal object CodecUtils {
-        
-            val UUID_CODEC = com.mojang.serialization.Codec.STRING.xmap(
+
+            val UUID_CODEC = Codec.STRING.xmap(
                 { java.util.UUID.fromString(it) },
                 { it.toString() }
             )
-        
-            val JSON_ELEMENT_CODEC = com.mojang.serialization.Codec.PASSTHROUGH.xmap(
+
+            val JSON_ELEMENT_CODEC = Codec.PASSTHROUGH.xmap(
                 { it.convert(com.mojang.serialization.JsonOps.INSTANCE).value },
                 { com.mojang.serialization.Dynamic(com.mojang.serialization.JsonOps.INSTANCE, it) }
             )
-        
-        
-            fun <T> compact(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
-                com.mojang.serialization.Codec.either(codec.listOf(), codec).xmap(
+
+            private inline fun <reified T> codec(): Codec<T> = $CODECS_IDENTIFIER.getCodec<T>()
+
+            inline fun <reified T> set(): Codec<Set<T>> = set(codec<T>())
+            inline fun <reified T> compactSet(): Codec<Set<T>> = compactSet(codec<T>())
+            inline fun <reified T> mutableSet(): Codec<MutableSet<T>> = mutableSet(codec<T>())
+            inline fun <reified T> compactMutableSet(): Codec<MutableSet<T>> = compactMutableSet(codec<T>())
+
+            inline fun <reified E : Enum<E>> enumSet(): Codec<EnumSet<E>> = enumSet(codec<E>())
+            inline fun <reified E : Enum<E>> compactEnumSet(): Codec<EnumSet<E>> = compactEnumSet(codec<E>())
+
+            inline fun <reified T> list(): Codec<List<T>> = list(codec<T>())
+            inline fun <reified T> compactList(): Codec<List<T>> = compactList(codec<T>())
+            inline fun <reified T> mutableList(): Codec<MutableList<T>> = mutableList(codec<T>())
+            inline fun <reified T> compactMutableList(): Codec<MutableList<T>> = compactMutableList(codec<T>())
+
+            inline fun <reified K, reified V> map(): Codec<MutableMap<K, V>> = map(codec<K>(), codec<V>())
+            inline fun <reified E : Enum<E>, reified V> enumMap(): Codec<EnumMap<E, V>> = enumMap(codec<E>(), codec<V>())
+
+            inline fun <reified L, reified R> either(): Codec<com.mojang.datafixers.util.Either<L, R>> = Codec.either(codec<L>(), codec<R>())
+
+
+            fun <T> compact(codec: Codec<T>): Codec<List<T>> =
+                Codec.either(codec.listOf(), codec).xmap(
                     { it.map({ it }, { listOf<T>(it) }) },
                     { if (it.size == 1) com.mojang.datafixers.util.Either.right(it[0]) else com.mojang.datafixers.util.Either.left(it) }
                 )
-        
-            fun <T> compactMutableSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
+
+            fun <T> compactMutableSet(codec: Codec<T>): Codec<MutableSet<T>> =
                 compact(codec).xmap({ it.toMutableSet() }, { it.toList() })
-        
-            fun <T> mutableSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableSet<T>> =
+
+            fun <T> mutableSet(codec: Codec<T>): Codec<MutableSet<T>> =
                 codec.listOf().xmap({ it.toMutableSet() }, { it.toList() })
-        
-            fun <T> compactSet(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<Set<T>> =
+
+            fun <T> compactSet(codec: Codec<T>): Codec<Set<T>> =
                 compact(codec).xmap({ it.toSet() }, { it.toList() })
-        
-            fun <T> set(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<Set<T>> =
+
+            fun <T> set(codec: Codec<T>): Codec<Set<T>> =
                 codec.listOf().xmap({ it.toSet() }, { it.toList() })
 
-            inline fun <reified E : Enum<E>> compactEnumSet(codec: com.mojang.serialization.Codec<E>): com.mojang.serialization.Codec<java.util.EnumSet<E>> =
+            inline fun <reified E : Enum<E>> compactEnumSet(codec: Codec<E>): Codec<EnumSet<E>> =
                 compactEnumSet(E::class.java, codec)
 
-            fun <E : Enum<E>> compactEnumSet(clazz: Class<E>, codec: com.mojang.serialization.Codec<E>): com.mojang.serialization.Codec<java.util.EnumSet<E>> =
-                compact(codec).xmap({ java.util.EnumSet.noneOf(clazz).apply { addAll(it) } }, { it.toList() })
+            fun <E : Enum<E>> compactEnumSet(clazz: Class<E>, codec: Codec<E>): Codec<EnumSet<E>> =
+                compact(codec).xmap({ EnumSet.noneOf(clazz).apply { addAll(it) } }, { it.toList() })
 
-            inline fun <reified E : Enum<E>> enumSet(codec: com.mojang.serialization.Codec<E>): com.mojang.serialization.Codec<java.util.EnumSet<E>> =
+            inline fun <reified E : Enum<E>> enumSet(codec: Codec<E>): Codec<EnumSet<E>> =
                 enumSet(E::class.java, codec)
 
-            fun <E : Enum<E>> enumSet(clazz: Class<E>, codec: com.mojang.serialization.Codec<E>): com.mojang.serialization.Codec<java.util.EnumSet<E>> =
-                codec.listOf().xmap({ java.util.EnumSet.noneOf(clazz).apply { addAll(it) } }, { it.toList() })
+            fun <E : Enum<E>> enumSet(clazz: Class<E>, codec: Codec<E>): Codec<EnumSet<E>> =
+                codec.listOf().xmap({ EnumSet.noneOf(clazz).apply { addAll(it) } }, { it.toList() })
 
-        
-            fun <T> compactList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
+
+            fun <T> compactList(codec: Codec<T>): Codec<List<T>> =
                 compact(codec).xmap({ it.toMutableList() }, { it })
-        
-            fun <T> list(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<List<T>> =
+
+            fun <T> list(codec: Codec<T>): Codec<List<T>> =
                 codec.listOf().xmap({ it.toMutableList() }, { it })
-        
-            fun <T> compactMutableList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+
+            fun <T> compactMutableList(codec: Codec<T>): Codec<MutableList<T>> =
                 compact(codec).xmap({ it.toMutableList() }, { it })
-        
-            fun <T> mutableList(codec: com.mojang.serialization.Codec<T>): com.mojang.serialization.Codec<MutableList<T>> =
+
+            fun <T> mutableList(codec: Codec<T>): Codec<MutableList<T>> =
                 codec.listOf().xmap({ it.toMutableList() }, { it })
-        
+
             fun <A, B> map(
-                key: com.mojang.serialization.Codec<A>,
-                value: com.mojang.serialization.Codec<B>
-            ): com.mojang.serialization.Codec<MutableMap<A, B>> =
-                com.mojang.serialization.Codec.unboundedMap(key, value).xmap({ it.toMutableMap() }, { it })
-        
-        
+                key: Codec<A>,
+                value: Codec<B>
+            ): Codec<MutableMap<A, B>> =
+                Codec.unboundedMap(key, value).xmap({ it.toMutableMap() }, { it })
+
+
             inline fun <reified E : Enum<E>, B> enumMap(
-                key: com.mojang.serialization.Codec<E>,
-                value: com.mojang.serialization.Codec<B>,
-            ): com.mojang.serialization.Codec<java.util.EnumMap<E, B>> = enumMap(E::class.java, key, value)
-        
+                key: Codec<E>,
+                value: Codec<B>,
+            ): Codec<EnumMap<E, B>> = enumMap(E::class.java, key, value)
+
             fun <E : Enum<E>, B> enumMap(
                 clazz: Class<E>,
-                key: com.mojang.serialization.Codec<E>,
-                value: com.mojang.serialization.Codec<B>,
-            ): com.mojang.serialization.Codec<java.util.EnumMap<E, B>> {
-                return com.mojang.serialization.Codec.unboundedMap(key, value).xmap({ java.util.EnumMap<E, B>(clazz).apply { putAll(it) } }, { it })
+                key: Codec<E>,
+                value: Codec<B>,
+            ): Codec<EnumMap<E, B>> {
+                return Codec.unboundedMap(key, value).xmap({ EnumMap<E, B>(clazz).apply { putAll(it) } }, { it })
             }
-        
+
             fun <T> lazyMapCodec(init: () -> com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<T> {
                 return com.mojang.serialization.MapCodec.recursive(init.toString()) { init() }
             }
-        
+
             fun <T> toLazy(codec: com.mojang.serialization.MapCodec<T>): com.mojang.serialization.MapCodec<Lazy<T>> {
                 return codec.xmap({ lazyOf(it) }, { it.value })
             }
             
-            fun longRange(min: Long, max: Long): com.mojang.serialization.Codec<Long> {
-               var checker = com.mojang.serialization.Codec.checkRange(min, max)
-               return com.mojang.serialization.Codec.LONG.flatXmap(checker, checker)
+            fun longRange(min: Long, max: Long): Codec<Long> {
+               val checker = Codec.checkRange(min, max)
+               return Codec.LONG.flatXmap(checker, checker)
             }
 
         }

@@ -1,17 +1,29 @@
 package me.owdding.ktcodecs.generators
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSValueParameter
 import me.owdding.kotlinpoet.CodeBlock
+import me.owdding.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import me.owdding.kotlinpoet.ksp.toClassName
+import me.owdding.kotlinpoet.ksp.toTypeParameterResolver
+import me.owdding.kotlinpoet.ksp.toTypeVariableName
 
 internal object RecordCodecInstanceGenerator {
 
     fun generateCodecInstance(
         code: CodeBlock.Builder,
-        parameters: List<Pair<String, RecordCodecGenerator.Type>>,
+        parameters: List<Pair<KSValueParameter, RecordCodecGenerator.Type>>,
         declaration: KSClassDeclaration,
     ): Unit = runCatching {
         with(code) {
+            val type = declaration.toClassName().let { className ->
+                if (declaration.typeParameters.isEmpty()) className
+                else {
+                    val resolver = declaration.typeParameters.toTypeParameterResolver()
+                    val typeVariables = declaration.typeParameters.map { it.toTypeVariableName(resolver) }
+                    declaration.toClassName().parameterizedBy(typeVariables)
+                }
+            }
             val defaults = parameters.filter { it.second == RecordCodecGenerator.Type.DEFAULT }
             val normal = parameters.filter { it.second != RecordCodecGenerator.Type.DEFAULT }
 
@@ -23,7 +35,7 @@ internal object RecordCodecInstanceGenerator {
                             if (it.second == RecordCodecGenerator.Type.NULLABLE) "$name = p_$name.orElse(null)" else "$name = p_$name"
                         }
                     })\n",
-                    declaration.toClassName(),
+                    type,
                 )
             } else if (defaults.size > 6) {
                 add(
@@ -33,7 +45,7 @@ internal object RecordCodecInstanceGenerator {
                             if (it.second == RecordCodecGenerator.Type.NULLABLE) "$name = p_$name.orElse(null)" else "$name = p_$name"
                         }
                     })\n",
-                    declaration.toClassName(),
+                    type,
                 )
                 for (pair in defaults) {
                     val name = pair.first
@@ -49,7 +61,7 @@ internal object RecordCodecInstanceGenerator {
                 for (defaultParams in possibilities) {
                     if (defaultParams.isEmpty()) continue
                     add(defaultParams.joinToString(" && ") { "p_$it.isPresent" })
-                    add(" -> %T(", declaration.toClassName())
+                    add(" -> %T(", type)
                     add(
                         normal.joinToString(", ") {
                             val name = it.first

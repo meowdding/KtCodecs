@@ -1,11 +1,7 @@
-package me.owdding.ktmodules
+package me.owdding.ktcodecs
 
-import com.mojang.serialization.Codec
-import com.mojang.serialization.DataResult
-import me.owdding.ktcodecs.*
 import java.util.EnumMap
 import java.util.EnumSet
-import java.util.Optional
 
 @GenerateCodec
 data class OptionalTest(
