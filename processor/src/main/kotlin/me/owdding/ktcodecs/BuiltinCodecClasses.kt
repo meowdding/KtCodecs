@@ -286,7 +286,7 @@ internal object BuiltinCodecClasses {
         import java.util.Optional
         import java.util.stream.Stream
         
-        data class OptionalMapCodec<Type : Any>(val parent: MapCodec<Type>) : MapCodec<Optional<Type>>() {
+        internal data class OptionalMapCodec<Type : Any>(val parent: MapCodec<Type>) : MapCodec<Optional<Type>>() {
             override fun <T> keys(ops: DynamicOps<T>): Stream<T> {
                 return Stream.empty()
             }
