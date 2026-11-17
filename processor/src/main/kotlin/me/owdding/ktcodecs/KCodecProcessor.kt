@@ -89,7 +89,7 @@ internal class KCodecProcessor(
          */
         val warnings = listOf("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN", "FunctionName", "LocalVariableName",
             "RemoveRedundantQualifierName", "RemoveExplicitTypeArguments", "RedundantVisibilityModifier", "unused",
-            "RedundantCompanionReference")
+            "RedundantCompanionReference", "DEPRECATION")
 
         val file = FileSpec.builder(context.generatedPackage, "${context.projectName}Codecs")
             .indent("    ")
