@@ -70,6 +70,8 @@ internal object RecordCodecGenerator {
         } else {
             val isMap = ksType.extendsOneOf(MAP)
             if (isMap && !parameter.hasAnnotation<NamedCodec>()) {
+                // TODO: this would technically be incorrect if a class extends Map but doesn't put Key as the first
+                //  type parameter, but idk exactly how to change that
                 val keyType = ksType.arguments.getRef(0).resolve()
                 // idk how exactly to check if the type parameter can be a key type meow?
                 if (keyType.declaration !is KSTypeParameter) {

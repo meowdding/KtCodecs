@@ -22,7 +22,7 @@ data class OptionalTest(
     @OptionalIfEmpty val enumSet: EnumSet<TestEnum> = EnumSet.noneOf(TestEnum::class.java),
     @OptionalIfEmpty val enumMap: EnumMap<TestEnum, String> = EnumMap(TestEnum::class.java),
 
-    @Inline @OptionalNullable val inlinedClass: OptionalNestedInlineThing?,
+    @Inline @OptionalNullable val inlinedClass: OptionalNestedInlineThing? = null,
 )
 
 @GenerateCodec
