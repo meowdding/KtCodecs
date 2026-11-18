@@ -12,37 +12,42 @@ internal object BuiltinCodecClasses {
         @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UNCHECKED_CAST", "DEPRECATION")
         package $PACKAGE_IDENTIFIER
         
-        internal class EnumCodec<T> private constructor(private val codec: com.mojang.serialization.Codec<T>) : com.mojang.serialization.Codec<T> {
+        import com.mojang.serialization.Codec
+        import com.mojang.serialization.DataResult
+        import com.mojang.serialization.DynamicOps
+        import com.mojang.datafixers.util.Pair
         
-            override fun <T1 : Any?> encode(input: T, ops: com.mojang.serialization.DynamicOps<T1>?, prefix: T1): com.mojang.serialization.DataResult<T1> = codec.encode(input, ops, prefix)
-            override fun <T1 : Any?> decode(ops: com.mojang.serialization.DynamicOps<T1>?, input: T1): com.mojang.serialization.DataResult<com.mojang.datafixers.util.Pair<T, T1>> = codec.decode(ops, input)
+        internal class EnumCodec<T> private constructor(private val codec: Codec<T>) : Codec<T> {
+        
+            override fun <T1 : Any?> encode(input: T, ops: DynamicOps<T1>?, prefix: T1): DataResult<T1> = codec.encode(input, ops, prefix)
+            override fun <T1 : Any?> decode(ops: DynamicOps<T1>?, input: T1): DataResult<Pair<T, T1>> = codec.decode(ops, input)
         
             companion object {
         
                 fun <T> forKCodec(constants: Array<T>): EnumCodec<T> =
-                    EnumCodec(com.mojang.serialization.Codec.withAlternative(constantCodec(constants), intCodec(constants)))
+                    EnumCodec(Codec.withAlternative(constantCodec(constants), intCodec(constants)))
         
-                private fun <T> intCodec(constants: Array<T>): com.mojang.serialization.Codec<T> {
-                    return com.mojang.serialization.Codec.INT.flatXmap(
+                private fun <T> intCodec(constants: Array<T>): Codec<T> {
+                    return Codec.INT.flatXmap(
                         { ordinal: Int ->
                             if (ordinal >= 0 && ordinal < constants.size) {
-                                return@flatXmap com.mojang.serialization.DataResult.success<T>(constants[ordinal])
+                                return@flatXmap DataResult.success<T>(constants[ordinal])
                             }
-                            com.mojang.serialization.DataResult.error { "Unknown enum ordinal: ${'$'}ordinal" }
+                            DataResult.error { "Unknown enum ordinal: ${'$'}ordinal" }
                         },
-                        { value: T -> com.mojang.serialization.DataResult.success((value as Enum<*>).ordinal) },
+                        { value: T -> DataResult.success((value as Enum<*>).ordinal) },
                     )
                 }
         
-                private fun <T> constantCodec(constants: Array<T>): com.mojang.serialization.Codec<T> = com.mojang.serialization.Codec.STRING.flatXmap(
+                private fun <T> constantCodec(constants: Array<T>): Codec<T> = Codec.STRING.flatXmap(
                     { name: String ->
                         runCatching {
-                            com.mojang.serialization.DataResult.success(constants.first { (it as Enum<*>).name.equals(name, true) })
+                            DataResult.success(constants.first { (it as Enum<*>).name.equals(name, true) })
                         }.getOrElse {
-                            com.mojang.serialization.DataResult.error { "Unknown enum name: ${'$'}name" }
+                            DataResult.error { "Unknown enum name: ${'$'}name" }
                         }
                     },
-                    { value: T -> com.mojang.serialization.DataResult.success((value as Enum<*>).name) },
+                    { value: T -> DataResult.success((value as Enum<*>).name) },
                 )
             }
         }
@@ -140,12 +145,18 @@ internal object BuiltinCodecClasses {
         import com.mojang.serialization.Codec
         import java.util.EnumMap
         import java.util.EnumSet
+        import kotlin.uuid.Uuid
 
         internal object CodecUtils {
 
             val UUID_CODEC = Codec.STRING.xmap(
                 { java.util.UUID.fromString(it) },
                 { it.toString() }
+            )
+            
+            val KOTLIN_UUID_CODEC = Codec.STRING.xmap(
+                { Uuid.parse(it) },
+                { it.toString() },
             )
 
             val JSON_ELEMENT_CODEC = Codec.PASSTHROUGH.xmap(
