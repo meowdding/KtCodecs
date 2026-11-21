@@ -39,6 +39,7 @@ internal class BuiltinCodecs : MutableMap<TypeName, Info> by mutableMapOf(){
         this.add("java.lang", "Double", "com.mojang.serialization.Codec.DOUBLE")
         this.add("kotlin", "Double", "com.mojang.serialization.Codec.DOUBLE")
         this.add("java.util", "UUID", "CodecUtils.UUID_CODEC", true)
+        this.add("kotlin.uuid", "Uuid", "CodecUtils.KOTLIN_UUID_CODEC", true)
         this.add("com.google.gson", "JsonElement", "CodecUtils.JSON_ELEMENT_CODEC")
     }
 
