@@ -143,6 +143,7 @@ internal object BuiltinCodecClasses {
         package $PACKAGE_IDENTIFIER
         
         import com.mojang.serialization.Codec
+        import com.mojang.serialization.MapCodec
         import java.util.EnumMap
         import java.util.EnumSet
         import kotlin.uuid.Uuid
